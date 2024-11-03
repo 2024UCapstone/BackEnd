@@ -89,9 +89,6 @@ public class StationService {
             existingStation.setLocation(new GeoJsonPoint(stationRequestDTO.getLatitude(), stationRequestDTO.getLongitude()));
             existingStation.setOrganizationId(organizationId); // 사용자 소속 정보 업데이트
 
-            // 변경 사항을 저장 (수동으로 save 호출 필요)
-            stationRepository.save(existingStation);
-
             return true;  // 업데이트 성공
 
         } catch (BusinessException e) {
@@ -102,9 +99,6 @@ public class StationService {
             return false;  // 시스템 예외 발생 시
         }
     }
-
-
-
 
 
     // 정류장 삭제
