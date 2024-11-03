@@ -115,7 +115,6 @@ public class StationService {
             bus.getStations().removeIf(stationInfo ->
                     stationInfo.getStationRef().getId().toString().equals(id));
 
-            busRepository.save(bus);  // 업데이트된 버스 정보 저장
             log.info("버스 {}의 노선에서 정류장 {}가 삭제되었습니다.", bus.getBusNumber(), id);
         }
 
