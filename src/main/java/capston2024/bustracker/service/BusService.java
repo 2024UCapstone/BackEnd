@@ -76,25 +76,37 @@ public class BusService {
     }
 
     // 3. 버스 수정 - 전체 버스 수정 사항
-    // 수정 사항 : 버스 정류장 이름, 버스 번호, 버스 전체 좌석
     @Transactional
     public boolean modifyBus(BusDTO busDTO) {
+        // 입력값 검증
+        if (busDTO.getBusNumber() == null || busDTO.getBusNumber().trim().isEmpty()) {
+            throw new IllegalArgumentException("버스 번호가 유효하지 않습니다.");
+        }
+
+        if (busDTO.getTotalSeats() < 0) {
+            throw new IllegalArgumentException("전체 좌석 수는 0보다 작을 수 없습니다.");
+        }
+
         List<String> stationNames = busDTO.getStationNames();
+        if (stationNames == null) {
+            stationNames = new ArrayList<>();
+        }
+
+        // 버스 번호로 버스 찾기
+        Bus bus = busRepository.findBusByBusNumber(busDTO.getBusNumber())
+                .orElseThrow(() -> new ResourceNotFoundException("해당 번호의 버스를 찾을 수 없습니다: " + busDTO.getBusNumber()));
 
         if (stationService.isValidStationNames(stationNames)) {
-            Bus bus = busRepository.findById(busDTO.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("버스를 찾을 수 없습니다."));
-
-            /* Stream 생성 - map - .collect(Collectors.toList())
-             List형을 개별 연산을 가능케하도록 Stream 구성,
-             map을 통해 개별적 연산 수행
-             수행된 연산을 .collect(Collectors.toList()) 통해 List로 다시 모음
-            */
-            List<Bus.StationInfo> stationInfoList = stationNames != null && !stationNames.isEmpty()
+        /* Stream 생성 - map - .collect(Collectors.toList())
+         List형을 개별 연산을 가능케하도록 Stream 구성,
+         map을 통해 개별적 연산 수행
+         수행된 연산을 .collect(Collectors.toList()) 통해 List로 다시 모음
+        */
+            List<Bus.StationInfo> stationInfoList = !stationNames.isEmpty()
                     ? stationNames.stream()
                     .map(name -> {
                         String stationId = (String) stationService.findStationIdByName(name);
-                        return new Bus.StationInfo(new DBRef("station", stationId), name);
+                        return new Bus.StationInfo(new DBRef("stations", stationId), name);
                     })
                     .collect(Collectors.toList())
                     : new ArrayList<>();
@@ -105,6 +117,10 @@ public class BusService {
 
             // 사용 가능한 좌석 수 업데이트
             int occupiedSeats = bus.getOccupiedSeats();
+            if (occupiedSeats > busDTO.getTotalSeats()) {
+                log.warn("전체 좌석 수({})가 현재 사용 중인 좌석 수({})보다 적습니다.",
+                        busDTO.getTotalSeats(), occupiedSeats);
+            }
             bus.setAvailableSeats(Math.max(0, busDTO.getTotalSeats() - occupiedSeats));
 
             return true;
