@@ -78,7 +78,7 @@ public class StationService {
         try {
             // OAuth2 사용자 정보 가져오기
             Map<String, Object> userInfo = authService.getUserDetails(userPrincipal);
-            String organizationId = (String) userInfo.get("organizationId"); // 사용자 소속 정보
+            String organizationId = (String) userInfo.get("organizationId");
 
             // 업데이트할 정류장을 ID로 찾기
             Station existingStation = stationRepository.findById(stationId)
@@ -87,16 +87,26 @@ public class StationService {
             // 정류장 정보 업데이트
             existingStation.setName(stationRequestDTO.getName());
             existingStation.setLocation(new GeoJsonPoint(stationRequestDTO.getLatitude(), stationRequestDTO.getLongitude()));
-            existingStation.setOrganizationId(organizationId); // 사용자 소속 정보 업데이트
+            existingStation.setOrganizationId(organizationId);
 
-            return true;  // 업데이트 성공
+            // 변경된 정보를 데이터베이스에 저장
+            Station savedStation = stationRepository.save(existingStation);
+
+            // 저장 결과 확인
+            if (savedStation != null && savedStation.getId() != null) {
+                log.info("정류장 업데이트 완료: {}", savedStation.getName());
+                return true;
+            } else {
+                log.error("정류장 저장 실패");
+                return false;
+            }
 
         } catch (BusinessException e) {
             log.error("정류장 업데이트 중 오류 발생 (비즈니스 예외): {}", e.getMessage());
-            return false;  // 비즈니스 예외 발생 시
+            throw e;  // 비즈니스 예외는 상위로 전파하여 적절한 처리 가능하도록 함
         } catch (Exception e) {
             log.error("정류장 업데이트 중 시스템 오류 발생: {}", e.getMessage());
-            return false;  // 시스템 예외 발생 시
+            throw new BusinessException(ErrorCode.GENERAL_ERROR, "정류장 업데이트 중 오류가 발생했습니다.");
         }
     }
 
