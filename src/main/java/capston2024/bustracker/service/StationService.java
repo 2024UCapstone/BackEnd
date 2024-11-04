@@ -129,18 +129,13 @@ public class StationService {
 
         for (String stationName : stationNames) {
             // 정류장 이름을 통해 해당 정류장 객체를 찾음
-            Optional<Station> stationOpt = stationRepository.findByName(stationName);
-
-            if (stationOpt.isEmpty()) {
-                log.warn("유효하지 않은 정류장 발견: {}", stationName);
-                return false;
-            }
+            Station station = stationRepository.findByName(stationName).orElseThrow(()->new ResourceNotFoundException("해당 이름에 존재하는 정류장이 없습니다"));
+            log.info("정류장 검사 {} 정류장의 객체 - {}", stationName, station);
         }
-
         return true;
     }
 
-    public Object findStationIdByName(String name) {
+    public String findStationIdByName(String name) {
         Station station = stationRepository.findByName(name).orElseThrow(()->new ResourceNotFoundException("해당 이름에 존재하는 정류장이 없습니다"));
         return station.getId();
     }

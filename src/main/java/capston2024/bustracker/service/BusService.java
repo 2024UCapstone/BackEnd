@@ -44,10 +44,10 @@ public class BusService {
              map을 통해 개별적 연산 수행
              수행된 연산을 .collect(Collectors.toList()) 통해 List로 다시 모음
             */
-            List<Bus.StationInfo> stationInfoList = stationNames != null && !stationNames.isEmpty()
+            List<Bus.StationInfo> stationInfoList = !stationNames.isEmpty()
                     ? stationNames.stream()
                     .map(name -> {
-                        String stationId = (String) stationService.findStationIdByName(name);
+                        String stationId = stationService.findStationIdByName(name);
                         return new Bus.StationInfo(new DBRef("station", stationId), name);
                     })
                     .collect(Collectors.toList())
@@ -76,56 +76,61 @@ public class BusService {
     }
 
     // 3. 버스 수정 - 전체 버스 수정 사항
-    @Transactional
     public boolean modifyBus(BusDTO busDTO) {
+        log.info("버스 수정 요청 받음: {}", busDTO);  // 입력값 확인용
+
         // 입력값 검증
         if (busDTO.getBusNumber() == null || busDTO.getBusNumber().trim().isEmpty()) {
+            log.error("버스 번호가 유효하지 않습니다");
             throw new IllegalArgumentException("버스 번호가 유효하지 않습니다.");
         }
-
         if (busDTO.getTotalSeats() < 0) {
+            log.error("좌석 수가 유효하지 않습니다: {}", busDTO.getTotalSeats());
             throw new IllegalArgumentException("전체 좌석 수는 0보다 작을 수 없습니다.");
         }
 
         List<String> stationNames = busDTO.getStationNames();
-        if (stationNames == null) {
-            stationNames = new ArrayList<>();
+        log.info("검증할 정류장 목록: {}", stationNames);  // 정류장 목록 확인용
+
+        // 버스 id로 버스 찾기
+        Bus bus = busRepository.findById(busDTO.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("해당 id의 버스를 찾을 수 없습니다: " + busDTO.getId()));
+        log.info("기존 버스 정보: {}", bus);  // 기존 버스 정보 확인용
+
+        if (!stationService.isValidStationNames(stationNames)) {
+            log.error("유효하지 않은 정류장 이름이 포함되어 있습니다: {}", stationNames);
+            return false;
         }
-
-        // 버스 번호로 버스 찾기
-        Bus bus = busRepository.findBusByBusNumber(busDTO.getBusNumber())
-                .orElseThrow(() -> new ResourceNotFoundException("해당 번호의 버스를 찾을 수 없습니다: " + busDTO.getBusNumber()));
-
-        if (stationService.isValidStationNames(stationNames)) {
         /* Stream 생성 - map - .collect(Collectors.toList())
          List형을 개별 연산을 가능케하도록 Stream 구성,
          map을 통해 개별적 연산 수행
          수행된 연산을 .collect(Collectors.toList()) 통해 List로 다시 모음
         */
-            List<Bus.StationInfo> stationInfoList = !stationNames.isEmpty()
-                    ? stationNames.stream()
-                    .map(name -> {
-                        String stationId = (String) stationService.findStationIdByName(name);
-                        return new Bus.StationInfo(new DBRef("stations", stationId), name);
-                    })
-                    .collect(Collectors.toList())
-                    : new ArrayList<>();
+        List<Bus.StationInfo> stationInfoList = !stationNames.isEmpty()
+                ? stationNames.stream()
+                .map(name -> {
+                    String stationId = stationService.findStationIdByName(name);
+                    return new Bus.StationInfo(new DBRef("stations", stationId), name);
+                })
+                .collect(Collectors.toList())
+                : new ArrayList<>();
 
-            bus.setStations(stationInfoList);
-            bus.setBusNumber(busDTO.getBusNumber());
-            bus.setTotalSeats(busDTO.getTotalSeats());
+        log.info("stationInfoList : {}", stationInfoList);
+        bus.setStations(stationInfoList);
+        bus.setBusNumber(busDTO.getBusNumber());
+        bus.setTotalSeats(busDTO.getTotalSeats());
 
-            // 사용 가능한 좌석 수 업데이트
-            int occupiedSeats = bus.getOccupiedSeats();
-            if (occupiedSeats > busDTO.getTotalSeats()) {
-                log.warn("전체 좌석 수({})가 현재 사용 중인 좌석 수({})보다 적습니다.",
-                        busDTO.getTotalSeats(), occupiedSeats);
-            }
-            bus.setAvailableSeats(Math.max(0, busDTO.getTotalSeats() - occupiedSeats));
-
-            return true;
+        // 사용 가능한 좌석 수 업데이트
+        int occupiedSeats = bus.getOccupiedSeats();
+        if (occupiedSeats > busDTO.getTotalSeats()) {
+            log.warn("전체 좌석 수({})가 현재 사용 중인 좌석 수({})보다 적으므로 사용 좌석수와 전체 좌석 수가 일치 하도록 자동 조정됩니다.", busDTO.getTotalSeats(), occupiedSeats);
+            occupiedSeats = busDTO.getTotalSeats();
         }
-        return false;
+        bus.setAvailableSeats(busDTO.getTotalSeats() - occupiedSeats);
+
+        log.info("버스가 성공적으로 수정됨 {}", bus);
+        busRepository.save(bus);  // 여기서는 UPDATE 동작
+        return true;
     }
 
     // 4. 모든 버스 조회
