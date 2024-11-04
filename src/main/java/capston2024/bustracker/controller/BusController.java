@@ -42,7 +42,7 @@ public class BusController {
 
     // 3. 버스 수정 (PUT)
     @PutMapping()
-//    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Boolean>> updateBus(@RequestBody BusDTO busDTO) {
         boolean result = busService.modifyBus(busDTO);
         return ResponseEntity.ok(new ApiResponse<>(result, "버스가 성공적으로 수정되었습니다."));
