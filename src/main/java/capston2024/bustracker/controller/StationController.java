@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -57,6 +58,7 @@ public class StationController {
 
     // 정류장 등록
     @PostMapping
+    @Transactional
     public ResponseEntity<ApiResponse<Station>> createStation(@AuthenticationPrincipal OAuth2User user, @RequestBody StationRequestDTO createStationDTO) {
         log.info("새로운 정류장 등록 요청: {}", createStationDTO.getName());
         try {
@@ -71,6 +73,7 @@ public class StationController {
 
     // 정류장 업데이트
     @PutMapping("/{id}")
+    @Transactional
     public ResponseEntity<ApiResponse<String>> updateStation(
             @AuthenticationPrincipal OAuth2User user,
             @PathVariable String id,
@@ -94,6 +97,7 @@ public class StationController {
 
     // 정류장 삭제
     @DeleteMapping("/{id}")
+    @Transactional
     public ResponseEntity<ApiResponse<Void>> deleteStation(@PathVariable String id) {
         log.info("정류장 ID {}로 삭제 요청", id);
         stationService.deleteStation(id);
