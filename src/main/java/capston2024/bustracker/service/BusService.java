@@ -34,6 +34,7 @@ public class BusService {
     private final StationService stationService;
     private final MongoOperations mongoOperations;
     private final Map<String, BusUpdateDTO> pendingUpdates = new ConcurrentHashMap<>();
+    private final Map<String, BusSeatUpdateDTO> pendingSeatUpdates = new ConcurrentHashMap<>();
 
     public boolean createBus(BusRegisterDTO busRegisterDTO) {
         List<String> stationNames = busRegisterDTO.getStationNames();
@@ -225,6 +226,82 @@ public class BusService {
                         .set("availableSeats", totalSeats-update.getSeats());
 
                 log.info("업데이트 쿼리: {}", mongoUpdate);
+
+                UpdateResult result = mongoOperations.updateFirst(query, mongoUpdate, "Bus");
+                log.info("버스 {} 업데이트 결과: 일치 문서 {}, 수정된 문서 {}",
+                        update.getBusNumber(), result.getMatchedCount(), result.getModifiedCount());
+
+                // 업데이트 후 문서 확인
+                Bus updatedBus = mongoOperations.findOne(query, Bus.class, "Bus");
+                log.info("업데이트된 버스 정보: {}", updatedBus);
+
+            } catch (Exception e) {
+                log.error("버스 {} 업데이트 중 오류 발생: ", update.getBusNumber(), e);
+            }
+        }
+
+        log.info("{} 개의 버스 위치와 좌석 정보가 업데이트되었습니다.", updates.size());
+    }
+
+    /**
+     * 웹 소켓에서 받아오는 서비스 - 버스 좌석 정보만
+     * @param csvData ( busNumber, location(lat, lst) )
+     * @return CompletableFuture.xFuture(e)
+     */
+    @Async
+    public CompletableFuture<Void> processBusSeatAsync(String csvData) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                BusSeatUpdateDTO update = parseCsvToBusSeatUpdate(csvData);
+                log.info("새로운 버스 좌석 정보 업데이트 수신: {}", update);
+                pendingSeatUpdates.compute(update.getBusNumber(), (key, existing) -> {
+                    if (existing == null || update.getTimestamp().isAfter(existing.getTimestamp())) {
+                        log.info("버스 좌석 업데이트 대기열에 추가: {}", update);
+                        return update;
+                    }
+                    return existing;
+                });
+            } catch (Exception e) {
+                log.error("버스 좌석 처리 중 오류 발생: ", e);
+            }
+        });
+    }
+
+
+    private BusSeatUpdateDTO parseCsvToBusSeatUpdate(String csvData) {
+        String[] parts = csvData.split(",");
+        if (parts.length != 2) {
+            throw new IllegalArgumentException("CSV 형식이 알맞지 않습니다. 형식: 버스번호,좌석수");
+        }
+
+        String busNumber = parts[0];
+        int seats = Integer.parseInt(parts[1]);
+        Instant timestamp = Instant.now();
+
+        return new BusSeatUpdateDTO(busNumber, seats, timestamp);
+    }
+
+    @Scheduled(fixedRate = 5000)
+    public void flushSeatUpdates() {
+        List<BusSeatUpdateDTO> updates;
+        synchronized (pendingSeatUpdates) {
+            updates = new ArrayList<>(pendingSeatUpdates.values());
+            pendingSeatUpdates.clear();
+        }
+
+        for (BusSeatUpdateDTO update : updates) {
+            try {
+                Query query = new Query(Criteria.where("busNumber").is(update.getBusNumber()));
+                Bus existingBus = mongoOperations.findOne(query, Bus.class);
+                int totalSeats = (existingBus != null)
+                        ? existingBus.getTotalSeats()
+                        : 40;  // 기본값
+                Update mongoUpdate = new Update()
+                        .set("timestamp", update.getTimestamp())
+                        .set("occupiedSeats", update.getSeats())
+                        .set("availableSeats", totalSeats-update.getSeats());
+
+                log.info("버스 좌석 업데이트 쿼리: {}", mongoUpdate);
 
                 UpdateResult result = mongoOperations.updateFirst(query, mongoUpdate, "Bus");
                 log.info("버스 {} 업데이트 결과: 일치 문서 {}, 수정된 문서 {}",
