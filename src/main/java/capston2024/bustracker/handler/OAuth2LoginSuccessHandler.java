@@ -21,8 +21,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     private final JwtTokenProvider tokenProvider;
     private final TokenService tokenService;
-    private static final String URI = "https://devse.gonetis.com";
-//    private static final String URI = "http://localhost:3000";
+//    private static final String URI = "https://devse.gonetis.com";
+    private static final String URI = "http://localhost:3000";
 
     private static final long REFRESH_TOKEN_ROTATION_TIME = 1000 * 60 * 60 * 24 * 7L; // 7일
 
