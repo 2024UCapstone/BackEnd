@@ -1,7 +1,7 @@
 package capston2024.bustracker.controller;
 
 import capston2024.bustracker.config.dto.ApiResponse;
-import capston2024.bustracker.config.dto.CreateStationDTO;
+import capston2024.bustracker.config.dto.StationRequestDTO;
 import capston2024.bustracker.domain.Station;
 import capston2024.bustracker.exception.BusinessException;
 import capston2024.bustracker.service.StationService;
@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,7 +27,7 @@ public class StationController {
         this.stationService = stationService;
     }
 
-    // 정류장 이름으로 조회 또는 모든 정류장 조회
+    // 정류장 이름으로 조회 또는 모든 정류장 조
     @GetMapping
     public ResponseEntity<ApiResponse<List<Station>>> getStations(@RequestParam(required = false) String name) {
         if (name != null && !name.isEmpty()) {
@@ -41,7 +42,7 @@ public class StationController {
                     stations.stream()
                             .map(Station::getName)
                             .collect(Collectors.joining(", ")));
-            return ResponseEntity.ok(new ApiResponse<>(stations, "버스 정류장 검색이 성공적으로 완료되었습니다."));
+            return ResponseEntity.ok(new ApiResponse<> (stations, "버스 정류장 검색이 성공적으로 완료되었습니다."));
         } else {
             // 모든 정류장 조회
             log.info("모든 정류장 조회 요청");
@@ -57,7 +58,8 @@ public class StationController {
 
     // 정류장 등록
     @PostMapping
-    public ResponseEntity<ApiResponse<Station>> createStation(@AuthenticationPrincipal OAuth2User user, @RequestBody CreateStationDTO createStationDTO) {
+    @Transactional
+    public ResponseEntity<ApiResponse<Station>> createStation(@AuthenticationPrincipal OAuth2User user, @RequestBody StationRequestDTO createStationDTO) {
         log.info("새로운 정류장 등록 요청: {}", createStationDTO.getName());
         try {
             Station createdStation = stationService.createStation(user, createStationDTO);
@@ -71,14 +73,31 @@ public class StationController {
 
     // 정류장 업데이트
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Station>> updateStation(@PathVariable String id, @RequestBody Station station) {
-        log.info("정류장 ID {}로 업데이트 요청", id);
-        Station updatedStation = stationService.updateStation(id, station);
-        return ResponseEntity.ok(new ApiResponse<>(updatedStation, "정류장이 성공적으로 업데이트되었습니다."));
+    @Transactional
+    public ResponseEntity<ApiResponse<String>> updateStation(
+            @AuthenticationPrincipal OAuth2User user,
+            @PathVariable String id,
+            @RequestBody StationRequestDTO stationRequestDTO) {
+
+        log.info("{} 정류장 업데이트 요청 (ID: {})", stationRequestDTO.getName(), id);
+
+        // 업데이트 작업 수행
+        boolean result = stationService.updateStation(user, id, stationRequestDTO);
+
+        if (result) {
+            // 성공적인 업데이트 응답
+            return ResponseEntity.ok(new ApiResponse<>(null, "정류장이 성공적으로 업데이트되었습니다."));
+        } else {
+            // 업데이트 실패 응답
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiResponse<>(null, "정류장 업데이트에 실패했습니다."));
+        }
     }
+
+
 
     // 정류장 삭제
     @DeleteMapping("/{id}")
+    @Transactional
     public ResponseEntity<ApiResponse<Void>> deleteStation(@PathVariable String id) {
         log.info("정류장 ID {}로 삭제 요청", id);
         stationService.deleteStation(id);

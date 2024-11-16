@@ -4,6 +4,7 @@ import com.mongodb.DBRef;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.geo.GeoJsonPoint;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
@@ -14,6 +15,7 @@ import java.util.List;
 @AllArgsConstructor // 모든 필드를 받는 생성자 생성
 @NoArgsConstructor // 기본 생성자 생성
 @Builder
+@CompoundIndex(def = "{'location': '2dsphere'}")
 public class Bus {
 
     @Id
@@ -23,6 +25,22 @@ public class Bus {
     private int occupiedSeats; // 앉은 좌석 수
     private int availableSeats; // 남은 좌석 수
     private GeoJsonPoint location; // 좌표 정보 (GeoJSON 형식)
-    private List<DBRef> stations; // 버스의 노선(정류장들의 DBRef)
+    private List<StationInfo> stations; // 버스의 노선(정류장들의 DBRef)
     private Instant timestamp; // 위치 정보 최신화
+    @Override
+    public String toString() {
+        return "Bus{" +
+                "id='" + id + '\'' +
+                ", busNumber='" + busNumber + '\'' +
+                ", location=" + location +
+                ", timestamp=" + timestamp +
+                '}';
+    }
+
+    @Data
+    @AllArgsConstructor
+    public static class StationInfo {
+        private DBRef stationRef;
+        private String stationName;
+    }
 }

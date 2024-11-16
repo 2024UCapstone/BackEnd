@@ -26,15 +26,15 @@ import static capston2024.bustracker.exception.ErrorCode.INVALID_TOKEN;
 
 @Component
 public class JwtTokenProvider {
-
+    public static final long ACCESS_TOKEN_EXPIRE_TIME = 1000 * 60 * 60 * 24 * 30L; // 30일
+    public static final long REFRESH_TOKEN_EXPIRE_TIME = 1000 * 60 * 60 * 24 * 90L; // 90일
     public JwtTokenProvider(@Value("${JWT_SECRET}") String key, TokenService tokenService) {
         this.key = key;
         this.tokenService = tokenService;
     }
     private final String key;
     private SecretKey secretKey;
-    private static final long ACCESS_TOKEN_EXPIRE_TIME = 1000 * 60 * 30L;
-    private static final long REFRESH_TOKEN_EXPIRE_TIME = 1000 * 60 * 60L * 24 * 7;
+    // 모바일 앱을 위한 토큰 만료 시간 조정
     private static final String KEY_ROLE = "role";
     private final TokenService tokenService;
 
@@ -50,7 +50,9 @@ public class JwtTokenProvider {
 
     public void generateRefreshToken(Authentication authentication, String accessToken) {
         String refreshToken = generateToken(authentication, REFRESH_TOKEN_EXPIRE_TIME);
-        tokenService.saveToken(authentication.getName(), refreshToken, accessToken);
+        // 현재 시간 + REFRESH_TOKEN_EXPIRE_TIME으로 만료 시간 설정
+        Date expirationDate = new Date(System.currentTimeMillis() + REFRESH_TOKEN_EXPIRE_TIME);
+        tokenService.saveToken(authentication.getName(), refreshToken, accessToken, expirationDate);
     }
 
     private String generateToken(Authentication authentication, long expireTime) {
@@ -93,6 +95,16 @@ public class JwtTokenProvider {
                 .collect(Collectors.toList());
     }
 
+    public long getTokenExpirationTime(String token) {
+        try {
+            Claims claims = parseClaims(token);
+            Date expiration = claims.getExpiration();
+            return expiration.getTime() - System.currentTimeMillis();
+        } catch (ExpiredJwtException e) {
+            return -1;
+        }
+    }
+
     public String reissueAccessToken(String accessToken) {
         if (StringUtils.hasText(accessToken)) {
             TokenInfo tokenInfo = tokenService.findByAccessToken(accessToken);
@@ -114,7 +126,8 @@ public class JwtTokenProvider {
             Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token);
             return true;
         } catch (ExpiredJwtException e) {
-            return false;
+            // 토큰 만료 예외를 던져서 클라이언트에게 알림
+            throw new ExpiredJwtException(e.getHeader(), e.getClaims(), "토큰이 만료되었습니다.");
         } catch (JwtException | IllegalArgumentException e) {
             throw new TokenException(INVALID_TOKEN);
         }

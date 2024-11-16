@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Getter @Setter
-public class CreateStationDTO {
+public class StationRequestDTO {
     private String name;
     private Double latitude;
     private Double longitude;

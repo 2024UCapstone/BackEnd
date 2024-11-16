@@ -1,10 +1,12 @@
 package capston2024.bustracker.service;
 
-import capston2024.bustracker.config.dto.CreateStationDTO;
+import capston2024.bustracker.config.dto.StationRequestDTO;
+import capston2024.bustracker.domain.Bus;
 import capston2024.bustracker.domain.Station;
 import capston2024.bustracker.exception.BusinessException;
 import capston2024.bustracker.exception.ErrorCode;
 import capston2024.bustracker.exception.ResourceNotFoundException;
+import capston2024.bustracker.repository.BusRepository;
 import capston2024.bustracker.repository.StationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,7 @@ import java.util.Optional;
 public class StationService {
 
     private final StationRepository stationRepository;
+    private final BusRepository busRepository;
     private final AuthService authService;
     private final SchoolService schoolService;
 
@@ -46,7 +49,7 @@ public class StationService {
     }
 
     // 새로운 정류장 추가
-    public Station createStation(OAuth2User userPrincipal, CreateStationDTO createStationDTO) {
+    public Station createStation(OAuth2User userPrincipal, StationRequestDTO createStationDTO) {
         log.info("새로운 정류장 추가 중: {}", createStationDTO.getName());
 
         // OAuth2 사용자 정보 가져오기
@@ -69,22 +72,65 @@ public class StationService {
     }
 
     // 정류장 업데이트 - 유효성 검사 포함
-    public Station updateStation(String id, Station updatedStation) {
-        log.info("ID {}로 정류장 업데이트 중...", id);
-        Station existingStation = getStationById(id);  // 존재 여부 확인
+    public boolean updateStation(OAuth2User userPrincipal, String stationId, StationRequestDTO stationRequestDTO) {
+        log.info("{} 정류장 업데이트 중...", stationRequestDTO.getName());
 
-        existingStation.setName(updatedStation.getName());
-        existingStation.setLocation(updatedStation.getLocation());
-        existingStation.setOrganizationId(updatedStation.getOrganizationId());
+        try {
+            // OAuth2 사용자 정보 가져오기
+            Map<String, Object> userInfo = authService.getUserDetails(userPrincipal);
+            String organizationId = (String) userInfo.get("organizationId");
 
-        return stationRepository.save(existingStation);
+            // 업데이트할 정류장을 ID로 찾기
+            Station existingStation = stationRepository.findById(stationId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUND, "해당 ID의 정류장을 찾을 수 없습니다."));
+
+            // 정류장 정보 업데이트
+            existingStation.setName(stationRequestDTO.getName());
+            existingStation.setLocation(new GeoJsonPoint(stationRequestDTO.getLatitude(), stationRequestDTO.getLongitude()));
+            existingStation.setOrganizationId(organizationId);
+
+            // 변경된 정보를 데이터베이스에 저장
+            Station savedStation = stationRepository.save(existingStation);
+
+            // 저장 결과 확인
+            if (savedStation != null && savedStation.getId() != null) {
+                log.info("정류장 업데이트 완료: {}", savedStation.getName());
+                return true;
+            } else {
+                log.error("정류장 저장 실패");
+                return false;
+            }
+
+        } catch (BusinessException e) {
+            log.error("정류장 업데이트 중 오류 발생 (비즈니스 예외): {}", e.getMessage());
+            throw e;  // 비즈니스 예외는 상위로 전파하여 적절한 처리 가능하도록 함
+        } catch (Exception e) {
+            log.error("정류장 업데이트 중 시스템 오류 발생: {}", e.getMessage());
+            throw new BusinessException(ErrorCode.GENERAL_ERROR, "정류장 업데이트 중 오류가 발생했습니다.");
+        }
     }
+
 
     // 정류장 삭제
     public void deleteStation(String id) {
         log.info("ID {}로 정류장 삭제 중...", id);
         Station station = getStationById(id);  // 존재 여부 확인
+
+        // 해당 정류장을 포함하고 있는 모든 버스 조회
+        List<Bus> busesWithStation = busRepository.findByStationsContaining(station);
+
+        // 각 버스에서 해당 정류장을 노선에서 제거
+        for (Bus bus : busesWithStation) {
+            // StationInfo 리스트에서 stationRef의 id가 삭제할 정류장의 id와 일치하는 항목 제거
+            bus.getStations().removeIf(stationInfo ->
+                    stationInfo.getStationRef().getId().toString().equals(id));
+
+            log.info("버스 {}의 노선에서 정류장 {}가 삭제되었습니다.", bus.getBusNumber(), id);
+        }
+
+        // 정류장 삭제
         stationRepository.delete(station);
+        log.info("정류장 {}가 삭제되었습니다.", id);
     }
 
     // 정류장 이름 목록을 받아 유효성 검사
@@ -93,18 +139,13 @@ public class StationService {
 
         for (String stationName : stationNames) {
             // 정류장 이름을 통해 해당 정류장 객체를 찾음
-            Optional<Station> stationOpt = stationRepository.findByName(stationName);
-
-            if (stationOpt.isEmpty()) {
-                log.warn("유효하지 않은 정류장 발견: {}", stationName);
-                return false;
-            }
+            Station station = stationRepository.findByName(stationName).orElseThrow(()->new ResourceNotFoundException("해당 이름에 존재하는 정류장이 없습니다"));
+            log.info("정류장 검사 {} 정류장의 객체 - {}", stationName, station);
         }
-
         return true;
     }
 
-    public Object findStationIdByName(String name) {
+    public String findStationIdByName(String name) {
         Station station = stationRepository.findByName(name).orElseThrow(()->new ResourceNotFoundException("해당 이름에 존재하는 정류장이 없습니다"));
         return station.getId();
     }

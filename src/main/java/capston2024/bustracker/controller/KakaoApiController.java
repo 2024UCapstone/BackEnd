@@ -1,5 +1,8 @@
 package capston2024.bustracker.controller;
 
+import capston2024.bustracker.config.dto.ApiResponse;
+import capston2024.bustracker.config.dto.ArrivalTimeRequestDTO;
+import capston2024.bustracker.config.dto.ArrivalTimeResponseDTO;
 import capston2024.bustracker.service.KakaoApiService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,22 +29,16 @@ public class KakaoApiController {
     private ObjectMapper objectMapper;
 
     @GetMapping("/arrival-time/single")
-    public ResponseEntity<String> getSingleArrivalTime(
+    public ResponseEntity<ApiResponse<ArrivalTimeResponseDTO>> getSingleArrivalTime(
             @RequestParam String origin,
             @RequestParam String destination) {
         log.info("도착 예정 시간을 요청 받았습니다. 출발지: {}, 목적지: {}", origin, destination);
-        Integer arrivalTimeInSeconds = kakaoApiService.getArrivalTime(origin, destination);
-
-        if (arrivalTimeInSeconds == null) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("도착 예정 시간을 불러오지 못했습니다.");
-        }
-
-        int minutes = arrivalTimeInSeconds / 60;
-        int seconds = arrivalTimeInSeconds % 60;
-
-        String responseMessage = String.format("도착 예정 시간: %d분 %d초", minutes, seconds);
-        return ResponseEntity.ok(responseMessage);
+        String[] origins = origin.split(",");
+        ArrivalTimeRequestDTO originDTO = new ArrivalTimeRequestDTO(origins[0], Double.parseDouble(origins[1]), Double.parseDouble(origins[2]));
+        String[] destinations = destination.split(",");
+        ArrivalTimeRequestDTO destinationDTO = new ArrivalTimeRequestDTO(destinations[0], Double.parseDouble(destinations[1]), Double.parseDouble(destinations[2]));
+        String arrivalTimeInSeconds = kakaoApiService.getArrivalTime(originDTO, destinationDTO);
+        return ResponseEntity.ok(new ApiResponse<>(new ArrivalTimeResponseDTO(originDTO.getName(), arrivalTimeInSeconds), "도착예정시간이 성공적으로 조회되었습니다."));
     }
 
     @PostMapping("/arrival-time/multi")
@@ -106,9 +105,6 @@ public class KakaoApiController {
                     .body("예기치 않은 오류가 발생했습니다.");
         }
     }
-
-
-
 
 
 }

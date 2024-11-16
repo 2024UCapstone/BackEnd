@@ -1,13 +1,8 @@
 package capston2024.bustracker.handler;
 
-import capston2024.bustracker.config.dto.LocationDTO;
-import capston2024.bustracker.domain.Bus;
-import capston2024.bustracker.repository.BusRepository;
 import capston2024.bustracker.service.BusService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.mongodb.core.geo.GeoJsonPoint;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -15,19 +10,18 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 실시간 버스 위치정보를 받아오는 아두이노 웹소켓 핸들러
+ * 실시간 버스 좌석정보를 받아오는 아두이노 웹소켓 핸들러
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class BusLocationWebSocketCsvHandler extends TextWebSocketHandler {
+public class BusSeatWebSocketHandler extends TextWebSocketHandler {
 
-    private final BusService busLocationService;
+    private final BusService busService;
     private final Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
 
     @Override
@@ -47,7 +41,7 @@ public class BusLocationWebSocketCsvHandler extends TextWebSocketHandler {
         String csvData = message.getPayload();
 
         // IoT 디바이스로부터 받은 데이터 처리
-        busLocationService.processBusLocationAsync(csvData)
+        busService.processBusSeatAsync(csvData)
                 .thenAccept(bus -> {
                     try {
                         // IoT 디바이스에게 처리 완료 메시지 전송
