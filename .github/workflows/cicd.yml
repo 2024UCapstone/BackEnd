@@ -52,6 +52,7 @@ jobs:
 
       - name: Trigger deployment
         run: |
+            # 허용된 POST 요청으로 푸시
             curl -X POST "${{ secrets.OFFICE_PC_WEBHOOK_URL }}/deploy" \
               -H "Content-Type: application/json" \
               -d '{
