@@ -7,10 +7,6 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     steps:
       - uses: actions/checkout@v4
 
@@ -41,43 +37,27 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Generate Webhook Signature
-        id: generate-signature
+      - name: Prepare deployment data and signature
+        id: prepare
         run: |
-          # 배포 데이터 생성
-          DEPLOY_DATA=$(cat << EOF
-          {
-            "image": "taehun2/bustracker:${{ github.ref_name }}",
-            "env": {
-              "SPRING_PROFILES_ACTIVE": "prod",
-              "DATABASE_NAME": "${{ secrets.DATABASE_NAME}}",
-              "MONGODB_URI": "${{ secrets.MONGODB_URI }}",
-              "OAUTH_CLIENT_ID": "${{ secrets.OAUTH_CLIENT_ID }}",
-              "OAUTH_SECRET_KEY": "${{ secrets.OAUTH_SECRET_KEY }}",
-              "UNIV_API_KEY": "${{ secrets.UNIV_API_KEY }}",
-              "KAKAO_REST_API_KEY": "${{ secrets.KAKAO_REST_API_KEY }}",
-              "JWT_SECRET": "${{ secrets.JWT_SECRET }}"
-            }
-          }
-          EOF
-          )
+          # JSON 데이터를 환경 변수로 설정
+          DEPLOY_JSON="{\"image\":\"taehun2/bustracker:${{ github.ref_name }}\",\"env\":{\"SPRING_PROFILES_ACTIVE\":\"prod\",\"DATABASE_NAME\":\"${{ secrets.DATABASE_NAME }}\",\"MONGODB_URI\":\"${{ secrets.MONGODB_URI }}\",\"OAUTH_CLIENT_ID\":\"${{ secrets.OAUTH_CLIENT_ID }}\",\"OAUTH_SECRET_KEY\":\"${{ secrets.OAUTH_SECRET_KEY }}\",\"UNIV_API_KEY\":\"${{ secrets.UNIV_API_KEY }}\",\"KAKAO_REST_API_KEY\":\"${{ secrets.KAKAO_REST_API_KEY }}\",\"JWT_SECRET\":\"${{ secrets.JWT_SECRET }}\"}}"
           
-          # 데이터를 임시 파일에 저장
-          echo "$DEPLOY_DATA" > deploy_data.json
+          # JSON 데이터로부터 서명 생성
+          SIGNATURE=$(echo -n "$DEPLOY_JSON" | openssl dgst -sha256 -hmac "${{ secrets.WEBHOOK_SECRET }}" | cut -d' ' -f2)
           
-          # SHA256 서명 생성
-          SIGNATURE=$(echo -n "$DEPLOY_DATA" | openssl dgst -sha256 -hmac "${{ secrets.WEBHOOK_SECRET }}" | awk '{print $2}')
-          echo "signature=${SIGNATURE}" >> $GITHUB_OUTPUT
-          echo "deploy_data=$(cat deploy_data.json)" >> $GITHUB_OUTPUT
+          # 결과를 GitHub Actions 환경 변수로 저장
+          echo "deploy_json=$DEPLOY_JSON" >> $GITHUB_OUTPUT
+          echo "signature=$SIGNATURE" >> $GITHUB_OUTPUT
 
       - name: Trigger deployment
         run: |
           curl -X POST "${{ secrets.OFFICE_PC_WEBHOOK_URL }}/deploy" \
             -H "Content-Type: application/json" \
-            -H "X-Hub-Signature-256: sha256=${{ steps.generate-signature.outputs.signature }}" \
+            -H "X-Hub-Signature-256: sha256=${{ steps.prepare.outputs.signature }}" \
             -H "User-Agent: GitHub-Actions" \
             --fail \
             --retry 3 \
             --retry-delay 5 \
             --max-time 30 \
-            -d '${{ steps.generate-signature.outputs.deploy_data }}'
+            -d "${{ steps.prepare.outputs.deploy_json }}"
