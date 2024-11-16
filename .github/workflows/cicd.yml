@@ -52,12 +52,18 @@ jobs:
 
       - name: Trigger deployment
         run: |
-          curl -X POST "${{ secrets.OFFICE_PC_WEBHOOK_URL }}/deploy" \
-            -H "Content-Type: application/json" \
-            -H "X-Hub-Signature-256: sha256=${{ steps.prepare.outputs.signature }}" \
-            -H "User-Agent: GitHub-Actions" \
-            --fail \
-            --retry 3 \
-            --retry-delay 5 \
-            --max-time 30 \
-            -d "${{ steps.prepare.outputs.deploy_json }}"
+            curl -X POST "${{ secrets.OFFICE_PC_WEBHOOK_URL }}/deploy" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "image": "taehun2/bustracker:${{ github.ref_name }}",
+                "env": {
+                  "SPRING_PROFILES_ACTIVE": "prod",
+                  "DATABASE_NAME": "${{ secrets.DATABASE_NAME}}",
+                  "MONGODB_URI": "${{ secrets.MONGODB_URI }}",
+                  "OAUTH_CLIENT_ID": "${{ secrets.OAUTH_CLIENT_ID }}",
+                  "OAUTH_SECRET_KEY": "${{ secrets.OAUTH_SECRET_KEY }}",
+                  "UNIV_API_KEY": "${{ secrets.UNIV_API_KEY }}",
+                  "KAKAO_REST_API_KEY": "${{ secrets.KAKAO_REST_API_KEY }}",
+                  "JWT_SECRET": "${{ secrets.JWT_SECRET }}"
+                }
+              }'
