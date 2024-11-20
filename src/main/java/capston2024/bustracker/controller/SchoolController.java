@@ -72,14 +72,15 @@ public class SchoolController {
         }
         Map<String, Object> authenticatedObj = schoolService.authenticate(request.getSchoolEmail(), request.getSchoolName(), request.getCode());
         String message = (String) authenticatedObj.get("message");
+        boolean success = (boolean) authenticatedObj.get("success");
         int statusCode = (int) authenticatedObj.get("code");
 
         HttpStatus httpStatus = HttpStatus.valueOf(statusCode);
-        boolean isSuccess = statusCode == 200 && authService.rankUpGuestToUser(principal, request.getSchoolName());
+        boolean isSuccess = success && authService.rankUpGuestToUser(principal, request.getSchoolName());
 //        boolean isSuccess = authService.rankUpGuestToUser(principal, request.getSchoolName());
         return ResponseEntity
                 .status(httpStatus)
-                .body(new ApiResponse<>(isSuccess, statusCode == 200 ? "인증이 완료되었습니다" : message));
+                .body(new ApiResponse<>(isSuccess, message));
 //        return ResponseEntity.ok(new ApiResponse<>(isSuccess, "인증되었습니다"));
     }
 
