@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>조직 관리자 로그인</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f4f4f4; margin: 0; }
+        .login-box { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); width: 300px; }
+        h1 { text-align: center; color: #333; }
+        .input-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: .5rem; }
+        input { width: 100%; padding: .5rem; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; }
+        button { width: 100%; padding: .7rem; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; }
+        button:hover { background-color: #0056b3; }
+        #error-message { color: red; margin-top: 1rem; text-align: center; display: none; }
+    </style>
+</head>
+<body>
+<div class="login-box">
+    <h1>조직 관리자 로그인</h1>
+    <form id="login-form">
+        <div class="input-group">
+            <label for="organizationId">아이디</label>
+            <input type="text" id="organizationId" name="organizationId" required>
+        </div>
+        <div class="input-group">
+            <label for="password">비밀번호</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit">로그인</button>
+    </form>
+    <div id="error-message"></div>
+</div>
+
+<script>
+    document.getElementById('login-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const organizationId = document.getElementById('organizationId').value;
+        const password = document.getElementById('password').value;
+        const errorMessageDiv = document.getElementById('error-message');
+        errorMessageDiv.style.display = 'none';
+
+        try {
+            const response = await fetch('/api/staff/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ organizationId, password })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                const token = result.data.accessToken;
+                // 성공 시 토큰과 함께 대시보드로 리디렉션
+                window.location.href = `/staff/dashboard?token=${token}`;
+            } else {
+                errorMessageDiv.textContent = result.message || '로그인에 실패했습니다.';
+                errorMessageDiv.style.display = 'block';
+            }
+        } catch (error) {
+            errorMessageDiv.textContent = '서버와 통신 중 오류가 발생했습니다.';
+            errorMessageDiv.style.display = 'block';
+        }
+    });
+</script>
+
+</body>
+</html>
