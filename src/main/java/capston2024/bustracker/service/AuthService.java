@@ -7,7 +7,7 @@ import capston2024.bustracker.domain.Token;
 import capston2024.bustracker.exception.BusinessException;
 import capston2024.bustracker.exception.UnauthorizedException;
 import capston2024.bustracker.handler.JwtTokenProvider;
-import capston2024.bustracker.repository.UserRepository;
+import capston2024.bustracker.repository.AuthRepository;
 import capston2024.bustracker.util.OrganizationCodeGenerator;
 import capston2024.bustracker.util.auth.OAuthAttributes;
 import capston2024.bustracker.util.auth.UserCreator;
@@ -32,7 +32,7 @@ import java.util.*;
 @RequiredArgsConstructor
 @Slf4j
 public class AuthService {
-    private final UserRepository userRepository;
+    private final AuthRepository authRepository;
     private final OrganizationService organizationService;
     private final TokenService tokenService;
     private final PasswordEncoderService passwordEncoderService; // PasswordEncoder 대신 사용
@@ -51,7 +51,7 @@ public class AuthService {
         log.info("STAFF 로그인 시도 (조직 ID): {}", organizationId);
         String email = organizationId + "@bustracker.org";
 
-        Auth auth = userRepository.findByEmail(email)
+        Auth auth = authRepository.findByEmail(email)
                 .orElseThrow(() -> new UnauthorizedException("조직 ID 또는 비밀번호가 일치하지 않습니다."));
 
         if (auth.getRole() != Role.STAFF) {
@@ -112,14 +112,14 @@ public class AuthService {
     // 이메일 검증 -> 이메일을 찾을 수 없을 시 새로운 유저 생성 로직으로 넘어감
     @Transactional
     public Auth authenticateUser(OAuthAttributes attributes) {
-        return userRepository.findByEmail(attributes.getEmail())
+        return authRepository.findByEmail(attributes.getEmail())
                 .orElseGet(() -> createNewUser(attributes));
     }
 
     // 새로운 유저 생성
     private Auth createNewUser(OAuthAttributes attributes) {
         Auth newAuth = UserCreator.createUserFrom(attributes);
-        return userRepository.save(newAuth);
+        return authRepository.save(newAuth);
     }
 
     // 인증후 인증 완료 시 유저의 역할이 USER 로 변경됨
@@ -138,7 +138,7 @@ public class AuthService {
         Organization organization = organizationService.getOrganization(organizationId);
         auth.updateRole(Role.USER);
         auth.setOrganizationId(organization.getId());
-        userRepository.save(auth);
+        authRepository.save(auth);
         return true;
     }
 
@@ -165,7 +165,7 @@ public class AuthService {
             auth.setOrganizationId("");
 
             // 3. 저장
-            userRepository.save(auth);
+            authRepository.save(auth);
 
             // 4. 사용자 토큰 삭제
             tokenService.deleteByUsername(auth.getEmail());
@@ -193,7 +193,7 @@ public class AuthService {
      */
     private Auth getUserFromPrincipal(OAuth2User principal) {
         String email = (String) principal.getAttributes().get("email");
-        return userRepository.findByEmail(email).orElseThrow(()->new UnauthorizedException("사용자가 인증되지 않았습니다"));
+        return authRepository.findByEmail(email).orElseThrow(()->new UnauthorizedException("사용자가 인증되지 않았습니다"));
     }
 
     /**
@@ -219,7 +219,7 @@ public class AuthService {
 
         // 이메일 중복 확인 (필요한 경우 숫자 추가)
         int suffix = 1;
-        while (userRepository.findByEmail(email).isPresent()) {
+        while (authRepository.findByEmail(email).isPresent()) {
             email = organizationId + suffix + "@bustracker.org";
             suffix++;
         }
@@ -235,7 +235,7 @@ public class AuthService {
                 .build();
 
         // 저장
-        userRepository.save(newAdmin);
+        authRepository.save(newAdmin);
 
         // 발급된 정보 반환
         Map<String, String> accountInfo = new HashMap<>();
@@ -290,7 +290,7 @@ public class AuthService {
      */
     public List<Auth> getOrganizationAdmins(String organizationId) {
         // 특정 조직의 STAFF 권한을 가진 사용자 조회
-        return userRepository.findByOrganizationIdAndRole(organizationId, Role.STAFF);
+        return authRepository.findByOrganizationIdAndRole(organizationId, Role.STAFF);
     }
 
     /**
@@ -302,7 +302,7 @@ public class AuthService {
         String email = organizationId + "@bustracker.org";
 
         // 사용자 조회
-        Auth auth = userRepository.findByEmail(email)
+        Auth auth = authRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException("해당 조직 ID의 관리자를 찾을 수 없습니다."));
 
         // STAFF 권한 확인
@@ -316,7 +316,7 @@ public class AuthService {
 
         // 비밀번호 업데이트
         auth.setPassword(encodedPassword);
-        userRepository.save(auth);
+        authRepository.save(auth);
 
         // 결과 반환
         Map<String, String> passwordInfo = new HashMap<>();
