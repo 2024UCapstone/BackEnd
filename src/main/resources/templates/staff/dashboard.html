@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>조직 관리자 대시보드</title>
+</head>
+<body>
+<h1>조직 관리자 대시보드</h1>
+<h2 th:text="|${user.name}님, 환영합니다.|"></h2>
+<p th:text="|소속: ${user.organizationId}|"></p>
+<input type="hidden" id="auth-token" th:value="${token}">
+
+<h2>버스 관리</h2>
+<table border="1">
+    <thead>
+    <tr>
+        <th>버스 번호</th>
+        <th>실제 번호</th>
+        <th>노선</th>
+        <th>운행 상태</th>
+        <th>작업</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="bus : ${buses}">
+        <td th:text="${bus.busNumber}"></td>
+        <td th:text="${bus.busRealNumber}"></td>
+        <td th:text="${bus.routeName}"></td>
+        <td th:text="${bus.isOperate} ? '운행중' : '중지'"></td>
+        <td>
+            <button>수정</button>
+            <button>삭제</button>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<h2>노선 관리</h2>
+<table border="1">
+    <thead>
+    <tr>
+        <th>노선 이름</th>
+        <th>작업</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="route : ${routes}">
+        <td th:text="${route.routeName}"></td>
+        <td>
+            <button>수정</button>
+            <button>삭제</button>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+
+<h2>정류장 관리</h2>
+<table border="1">
+    <thead>
+    <tr>
+        <th>정류장 이름</th>
+        <th>작업</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="station : ${stations}">
+        <td th:text="${station.name}"></td>
+        <td>
+            <button>수정</button>
+            <button>삭제</button>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+</body>
+</html>

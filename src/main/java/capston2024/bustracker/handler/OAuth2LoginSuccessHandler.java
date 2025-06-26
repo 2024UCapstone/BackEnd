@@ -102,11 +102,15 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                 .anyMatch(authority -> authority.getAuthority().equals(Role.USER.getKey()));
         boolean isAdmin = authentication.getAuthorities().stream()
                 .anyMatch(authority -> authority.getAuthority().equals(Role.ADMIN.getKey()));
+        boolean isStaff = authentication.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals(Role.STAFF.getKey())); // STAFF 역할 확인 추가
+
 
         // 사용자 역할 로깅
         String roleStr = isAdmin ? "총관리자" :
-                            isUser ? "인증된 사용자" :
-                                isGuest ? "게스트" : "알 수 없음";
+                             isStaff ? "조직 관리자" : // 로그에 STAFF 역할 추가
+                                isUser ? "인증된 사용자" :
+                                    isGuest ? "게스트" : "알 수 없음";
         log.info("사용자 역할: {}", roleStr);
 
         // User-Agent가 없는 경우 처리(추후, 개발 제안)
@@ -130,30 +134,35 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         log.info("디바이스 타입: {}", isMobileDevice ? "모바일" : "웹");
 
         // 웹 환경: 관리자 계정은 해당 페이지로, 나머지는 USER 앱 안내 페이지로
-        if (!isMobileDevice && isAdmin) {
-            log.info("웹 사용자(총관리자) - 웹 대시보드로 리다이렉트");
-            return UriComponentsBuilder
-                    .fromUriString("/admin/dashboard")
-                    .queryParam("token", encodedToken)
-                    .build(false)
-                    .toUriString();
+        if (!isMobileDevice) {
+            if (isAdmin) {
+                log.info("웹 사용자(총관리자) - 웹 대시보드로 리다이렉트");
+                return UriComponentsBuilder
+                        .fromUriString("/admin/dashboard")
+                        .queryParam("token", encodedToken)
+                        .build(false)
+                        .toUriString();
+            } else if (isStaff) {
+                log.info("웹 사용자(조직 관리자) - 조직 관리자 대시보드로 리다이렉트");
+                return UriComponentsBuilder
+                        .fromUriString("/staff/dashboard") // staff 대시보드로 리디렉션
+                        .queryParam("token", encodedToken)
+                        .build(false)
+                        .toUriString();
+            }
         }
-        else {
-            String appSchemeUri;
 
-            appSchemeUri = Objects.requireNonNull(userAgent).contains("iPhone")
-                    ? IOS_APP_SCHEME_URI : ANDROID_APP_SCHEME_URI;
-            log.info("사용자 앱에서 로그인 - 사용자 앱으로 리다이렉트");
+        String appSchemeUri = Objects.requireNonNull(userAgent).contains("iPhone")
+                ? IOS_APP_SCHEME_URI : ANDROID_APP_SCHEME_URI;
+        log.info("사용자 앱에서 로그인 - 사용자 앱으로 리다이렉트");
+        log.info("결정된 앱 스킴 URI: {}", appSchemeUri);
 
-            log.info("결정된 앱 스킴 URI: {}", appSchemeUri);
-
-            // 앱 스킴 URL에 토큰 추가하여 리다이렉트
-            return UriComponentsBuilder
-                    .fromUriString(appSchemeUri)
-                    .queryParam("token", encodedToken)
-                    .build(false)
-                    .toUriString();
-        }
+        // 앱 스킴 URL에 토큰 추가하여 리다이렉트
+        return UriComponentsBuilder
+                .fromUriString(appSchemeUri)
+                .queryParam("token", encodedToken)
+                .build(false)
+                .toUriString();
     }
 
     /**
