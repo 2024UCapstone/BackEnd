@@ -20,6 +20,7 @@ public class UserCreator {
                 .picture(attributes.getPicture())
                 .myStations(list)
                 .role(Role.GUEST)
+                .organizationId("")
                 .build();
     }
 }
