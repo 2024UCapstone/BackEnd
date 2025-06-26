@@ -3,17 +3,23 @@ package capston2024.bustracker.service;
 import capston2024.bustracker.config.status.Role;
 import capston2024.bustracker.domain.Auth;
 import capston2024.bustracker.domain.Organization;
+import capston2024.bustracker.domain.Token;
 import capston2024.bustracker.exception.BusinessException;
 import capston2024.bustracker.exception.UnauthorizedException;
+import capston2024.bustracker.handler.JwtTokenProvider;
 import capston2024.bustracker.repository.UserRepository;
 import capston2024.bustracker.util.OrganizationCodeGenerator;
 import capston2024.bustracker.util.auth.OAuthAttributes;
 import capston2024.bustracker.util.auth.UserCreator;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
@@ -30,6 +36,78 @@ public class AuthService {
     private final OrganizationService organizationService;
     private final TokenService tokenService;
     private final PasswordEncoderService passwordEncoderService; // PasswordEncoder 대신 사용
+
+    private final JwtTokenProvider tokenProvider;
+    private static final long REFRESH_TOKEN_ROTATION_TIME = 1000 * 60 * 60 * 24 * 7L; // 7일
+
+    /**
+     * STAFF 역할 사용자 로그인 (수정)
+     * @param organizationId 조직 ID
+     * @param password 비밀번호
+     * @return Map (accessToken, 이름, 조직 ID)
+     */
+    @Transactional
+    public Map<String, String> loginStaff(String organizationId, String password) {
+        log.info("STAFF 로그인 시도 (조직 ID): {}", organizationId);
+        String email = organizationId + "@bustracker.org";
+
+        Auth auth = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UnauthorizedException("조직 ID 또는 비밀번호가 일치하지 않습니다."));
+
+        if (auth.getRole() != Role.STAFF) {
+            throw new UnauthorizedException("관리자 계정이 아닙니다.");
+        }
+
+        if (!passwordEncoderService.matches(password, auth.getPassword())) {
+            throw new UnauthorizedException("조직 ID 또는 비밀번호가 일치하지 않습니다.");
+        }
+
+        // 인증 객체 생성
+        Collection<? extends GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(auth.getRoleKey()));
+        Authentication authentication = new UsernamePasswordAuthenticationToken(auth, null, authorities);
+
+        // 토큰 발급 로직
+        String accessToken = issueTokens(authentication);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("token", accessToken);
+        response.put("name", auth.getName());
+        response.put("organizationId", auth.getOrganizationId());
+
+        log.info("STAFF 로그인 성공: {}", auth.getEmail());
+        return response;
+    }
+
+    private String issueTokens(Authentication authentication) {
+        String username = authentication.getName();
+        Token existingToken = tokenService.findByUserName(username);
+        String accessToken;
+
+        try {
+            if (existingToken != null && tokenProvider.validateToken(existingToken.getRefreshToken())) {
+                long refreshTokenRemainTime = tokenProvider.getTokenExpirationTime(existingToken.getRefreshToken());
+                if (refreshTokenRemainTime > REFRESH_TOKEN_ROTATION_TIME) {
+                    accessToken = tokenProvider.reissueAccessToken(existingToken.getAccessToken());
+                } else {
+                    accessToken = tokenProvider.generateAccessToken(authentication);
+                    tokenProvider.generateRefreshToken(authentication, accessToken);
+                }
+            } else {
+                accessToken = tokenProvider.generateAccessToken(authentication);
+                tokenProvider.generateRefreshToken(authentication, accessToken);
+            }
+        } catch (ExpiredJwtException e) {
+            log.warn("만료된 토큰 감지, 새로 발급: {}", username);
+            accessToken = tokenProvider.generateAccessToken(authentication);
+            tokenProvider.generateRefreshToken(authentication, accessToken);
+        } catch (Exception e) {
+            log.error("토큰 발급 중 예기치 않은 오류 발생, 새로 발급: {}", username, e);
+            accessToken = tokenProvider.generateAccessToken(authentication);
+            tokenProvider.generateRefreshToken(authentication, accessToken);
+        }
+        return accessToken;
+    }
+
 
     // 이메일 검증 -> 이메일을 찾을 수 없을 시 새로운 유저 생성 로직으로 넘어감
     @Transactional
