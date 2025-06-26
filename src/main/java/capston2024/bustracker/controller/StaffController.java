@@ -34,7 +34,7 @@ public class StaffController {
     @GetMapping("/dashboard")
     public String dashboard(@RequestParam(required = false) String token, @AuthenticationPrincipal OAuth2User principal, Model model) {
         if (principal == null) {
-            return "redirect:staff/login"; // Or a generic error page
+            return "redirect:/login"; // Or a generic error page
         }
         Map<String, Object> userInfo = authService.getUserDetails(principal);
         String organizationId = (String) userInfo.get("organizationId");
