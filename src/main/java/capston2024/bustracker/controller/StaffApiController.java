@@ -1,42 +1,25 @@
 package capston2024.bustracker.controller;
 
 import capston2024.bustracker.config.dto.ApiResponse;
-import capston2024.bustracker.config.status.Role;
-import capston2024.bustracker.domain.Auth;
-import capston2024.bustracker.domain.Token;
 import capston2024.bustracker.exception.BusinessException;
 import capston2024.bustracker.exception.TokenException;
 import capston2024.bustracker.exception.UnauthorizedException;
-import capston2024.bustracker.handler.JwtTokenProvider;
-import capston2024.bustracker.repository.UserRepository;
 import capston2024.bustracker.service.AuthService;
-import capston2024.bustracker.service.PasswordEncoderService;
-import capston2024.bustracker.service.TokenService;
 import io.jsonwebtoken.ExpiredJwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 // Swagger 어노테이션 추가
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
 
 @RestController
 @RequestMapping("/api/staff")
