@@ -223,6 +223,16 @@ public class BusService {
                 .orElseThrow(() -> new ResourceNotFoundException(String.format("버스를 찾을 수 없습니다: 번호=%s, 조직=%s", busNumber, organizationId)));
     }
 
+    /**
+     * 실제 버스 번호와 조직으로 특정 버스 조회
+     */
+    public Bus getBusByRealNumberAndOrganization(String busRealNumber, String organizationId) {
+        return busRepository.findByBusRealNumberAndOrganizationId(busRealNumber, organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format("실제 버스 번호로 버스를 찾을 수 없습니다: 실제번호=%s, 조직=%s", busRealNumber, organizationId)));
+    }
+
+
     public List<Bus> getAllBusesByOrganizationId(String organizationId) {
         return busRepository.findByOrganizationId(organizationId);
     }
@@ -255,6 +265,45 @@ public class BusService {
         busSeatDTO.setOperate(bus.isOperate());
         return busSeatDTO;
     }
+
+    /**
+     * 운행 중인 버스만 조회
+     */
+    public List<BusRealTimeStatusDTO> getOperatingBusesByOrganizationId(String organizationId) {
+        List<Bus> operatingBuses = busRepository.findByOrganizationIdAndIsOperateTrue(organizationId);
+        return operatingBuses.stream()
+                .map(this::convertToStatusDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 특정 정류장을 경유하는 조직의 모든 버스 조회
+     */
+    public List<BusRealTimeStatusDTO> getBusesByStationAndOrganization(String stationId, String organizationId) {
+        log.info("특정 정류장을 경유하는 버스 조회 - 정류장 ID: {}, 조직 ID: {}", stationId, organizationId);
+
+        List<Bus> organizationBuses = getAllBusesByOrganizationId(organizationId);
+        List<BusRealTimeStatusDTO> result = new ArrayList<>();
+
+        for (Bus bus : organizationBuses) {
+            if (bus.getRouteId() == null) continue;
+
+            String routeId = bus.getRouteId().getId().toString();
+            Route route = routeRepository.findById(routeId).orElse(null);
+
+            if (route != null && route.getStations() != null) {
+                boolean containsStation = route.getStations().stream()
+                        .anyMatch(routeStation -> routeStation.getStationId().getId().toString().equals(stationId));
+
+                if (containsStation) {
+                    result.add(convertToStatusDTO(bus));
+                }
+            }
+        }
+        log.info("정류장 {} 경유 버스 {} 대 조회됨", stationId, result.size());
+        return result;
+    }
+
 
     private BusRealTimeStatusDTO convertToStatusDTO(Bus bus) {
         Route route = (bus.getRouteId() != null) ? routeRepository.findById(bus.getRouteId().getId().toString()).orElse(null) : null;
