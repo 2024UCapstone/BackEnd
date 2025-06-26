@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>총관리자 대시보드</title>
+    <style>
+        /* 기존 스타일 유지 */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        header {
+            background-color: #1a73e8;
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logout {
+            color: white;
+            text-decoration: none;
+        }
+        main {
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        h2 {
+            color: #1a73e8;
+            margin-top: 0;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .card {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .card-title {
+            margin: 0 0 1rem 0;
+            color: #1a73e8;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        input, select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.5rem 1rem;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0d62cb;
+        }
+        .success-message, .error-message {
+            padding: 0.5rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+        .success-message {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .admin-list {
+            margin-top: 1rem;
+        }
+        .admin-item {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+        .account-info {
+            background-color: #e2f3ff;
+            border: 1px solid #b8daff;
+            border-radius: 4px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        .copy-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.25rem 0.5rem;
+            font-size: 12px;
+            margin-left: 0.5rem;
+            cursor: pointer;
+        }
+        .copy-btn:hover {
+            background-color: #218838;
+        }
+        .org-list {
+            margin-top: 1.5rem;
+        }
+        .org-item {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>버스트래커 총관리자</h1>
+    <a th:href="@{/admin/logout(token=${token})}" class="logout">로그아웃</a>
+</header>
+
+<main>
+    <div class="container">
+        <h2>조직 및 관리자 계정 관리</h2>
+
+        <!-- 토큰 정보 저장 (숨김) -->
+        <input type="hidden" id="auth-token" th:value="${token}">
+
+        <div class="grid">
+            <div class="card">
+                <h3 class="card-title">새 조직 및 관리자 생성</h3>
+
+                <form id="create-org-form">
+                    <div class="form-group">
+                        <label for="organizationName">조직 이름</label>
+                        <input type="text" id="organizationName" required placeholder="조직 이름을 입력하세요">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="adminName">관리자 이름</label>
+                        <input type="text" id="adminName" required placeholder="관리자 이름을 입력하세요">
+                    </div>
+
+                    <button type="submit">조직 및 관리자 생성</button>
+                </form>
+
+                <div id="result-message" class="success-message" style="display: none;"></div>
+
+                <div id="account-info" class="account-info" style="display: none;">
+                    <h4>발급된 계정 정보</h4>
+                    <div><strong>조직 이름:</strong> <span id="info-org-name"></span></div>
+                    <div>
+                        <strong>조직 ID:</strong> <span id="info-org-id"></span>
+                        <button class="copy-btn" onclick="copyToClipboard('info-org-id')">복사</button>
+                    </div>
+                    <div><strong>관리자 이름:</strong> <span id="info-admin-name"></span></div>
+                    <div>
+                        <strong>관리자 ID:</strong> <span id="info-admin-id"></span>
+                        <button class="copy-btn" onclick="copyToClipboard('info-admin-id')">복사</button>
+                    </div>
+                    <div>
+                        <strong>이메일:</strong> <span id="info-email"></span>
+                        <button class="copy-btn" onclick="copyToClipboard('info-email')">복사</button>
+                    </div>
+                    <div>
+                        <strong>비밀번호:</strong> <span id="info-password"></span>
+                        <button class="copy-btn" onclick="copyToClipboard('info-password')">복사</button>
+                    </div>
+                    <p style="color: #dc3545; font-weight: bold;">※ 발급된 정보는 다시 확인할 수 없으니 반드시 안전한 곳에 저장하세요.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">조직 목록</h3>
+
+                <div id="org-list" class="org-list">
+                    <div th:each="org : ${organizations}" class="org-item">
+                        <div><strong>조직 이름:</strong> <span th:text="${org.name}"></span></div>
+                        <div><strong>조직 ID:</strong> <span th:text="${org.id}"></span></div>
+                        <button class="view-admins-btn" th:data-org-id="${org.id}" th:data-org-name="${org.name}">관리자 조회</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container" id="admin-container" style="display: none;">
+            <h2 id="admin-list-title">조직 관리자 목록</h2>
+            <div id="admin-list" class="admin-list"></div>
+        </div>
+    </div>
+    <div class="card">
+        <h3 class="card-title">비밀번호 리셋</h3>
+
+        <form id="reset-password-form">
+            <div class="form-group">
+                <label for="reset-organization-id">조직 ID</label>
+                <input type="text" id="reset-organization-id" required placeholder="비밀번호를 리셋할 조직 ID">
+            </div>
+
+            <button type="submit">새 비밀번호 발급</button>
+        </form>
+
+        <div id="reset-result-message" class="success-message" style="display: none;"></div>
+
+        <div id="new-password-info" class="account-info" style="display: none;">
+            <h4>새 비밀번호 정보</h4>
+            <div><strong>조직 ID:</strong> <span id="reset-org-id"></span></div>
+            <div>
+                <strong>새 비밀번호:</strong> <span id="new-password"></span>
+                <button class="copy-btn" onclick="copyToClipboard('new-password')">복사</button>
+            </div>
+            <p style="color: #dc3545; font-weight: bold;">※ 발급된 비밀번호는 다시 확인할 수 없으니 반드시 안전한 곳에 저장하세요.</p>
+        </div>
+    </div>
+
+    <script>
+        // 비밀번호 리셋 기능
+        document.getElementById('reset-password-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const organizationId = document.getElementById('reset-organization-id').value;
+            const resultMessage = document.getElementById('reset-result-message');
+            const newPasswordInfo = document.getElementById('new-password-info');
+
+            // 토큰 파라미터가 있는 URL 생성
+            const apiUrl = addTokenToUrl('/admin/api/reset-password');
+
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    organizationId
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    resultMessage.textContent = data.message;
+                    resultMessage.className = 'success-message';
+                    resultMessage.style.display = 'block';
+
+                    // 발급된 비밀번호 정보 표시
+                    if (data.data) {
+                        document.getElementById('reset-org-id').textContent = data.data.organizationId;
+                        document.getElementById('new-password').textContent = data.data.password;
+                        newPasswordInfo.style.display = 'block';
+                    }
+
+                    // 폼 초기화
+                    document.getElementById('reset-password-form').reset();
+                })
+                .catch(error => {
+                    resultMessage.textContent = '비밀번호 리셋 실패: ' + error.message;
+                    resultMessage.className = 'error-message';
+                    resultMessage.style.display = 'block';
+                    newPasswordInfo.style.display = 'none';
+                });
+        });
+    </script>
+</main>
+
+<script>
+    // 토큰 가져오기
+    function getAuthToken() {
+        const tokenInput = document.getElementById('auth-token');
+        return tokenInput ? tokenInput.value : null;
+    }
+
+    // API 호출 URL에 토큰 파라미터 추가하기
+    function addTokenToUrl(url) {
+        const token = getAuthToken();
+        if (token) {
+            const separator = url.includes('?') ? '&' : '?';
+            return `${url}${separator}token=${token}`;
+        }
+        return url;
+    }
+
+    // 조직 및 관리자 계정 생성
+    document.getElementById('create-org-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const organizationName = document.getElementById('organizationName').value;
+        const adminName = document.getElementById('adminName').value;
+
+        const resultMessage = document.getElementById('result-message');
+        const accountInfo = document.getElementById('account-info');
+
+        // 토큰 파라미터가 있는 URL 생성
+        const apiUrl = addTokenToUrl('/admin/api/organizations');
+
+        fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                organizationName,
+                adminName
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                resultMessage.textContent = data.message;
+                resultMessage.className = 'success-message';
+                resultMessage.style.display = 'block';
+
+                // 발급된 계정 정보 표시
+                if (data.data) {
+                    document.getElementById('info-org-name').textContent = data.data.organizationName;
+                    document.getElementById('info-org-id').textContent = data.data.organizationId;
+                    document.getElementById('info-admin-name').textContent = data.data.adminName;
+                    document.getElementById('info-admin-id').textContent = data.data.adminId;
+                    document.getElementById('info-email').textContent = data.data.email;
+                    document.getElementById('info-password').textContent = data.data.password;
+                    accountInfo.style.display = 'block';
+
+                    // 조직 목록 새로고침 (페이지 리로드)
+                    setTimeout(() => {
+                        // 토큰을 유지하며 페이지 리로드
+                        const token = getAuthToken();
+                        if (token) {
+                            window.location.href = `/admin/dashboard?token=${token}`;
+                        } else {
+                            window.location.reload();
+                        }
+                    }, 5000);
+                }
+
+                // 폼 초기화
+                document.getElementById('create-org-form').reset();
+            })
+            .catch(error => {
+                resultMessage.textContent = '조직 및 관리자 계정 생성 실패: ' + error.message;
+                resultMessage.className = 'error-message';
+                resultMessage.style.display = 'block';
+                accountInfo.style.display = 'none';
+            });
+    });
+
+    // 조직별 관리자 목록 조회
+    document.querySelectorAll('.view-admins-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const organizationId = this.getAttribute('data-org-id');
+            const organizationName = this.getAttribute('data-org-name');
+            const adminList = document.getElementById('admin-list');
+            const adminContainer = document.getElementById('admin-container');
+            const adminListTitle = document.getElementById('admin-list-title');
+
+            adminContainer.style.display = 'block';
+            adminListTitle.textContent = `${organizationName} 조직의 관리자 목록`;
+
+            // 토큰 파라미터가 있는 URL 생성
+            const apiUrl = addTokenToUrl(`/admin/api/organization-admins?organizationId=${organizationId}`);
+
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    adminList.innerHTML = '';
+
+                    if (data.data && data.data.length > 0) {
+                        data.data.forEach(admin => {
+                            const adminItem = document.createElement('div');
+                            adminItem.className = 'admin-item';
+                            adminItem.innerHTML = `
+                                    <div><strong>이름:</strong> ${admin.name}</div>
+                                    <div><strong>이메일:</strong> ${admin.email}</div>
+                                    <div><strong>권한:</strong> ${admin.roleKey}</div>
+                                `;
+                            adminList.appendChild(adminItem);
+                        });
+                    } else {
+                        adminList.innerHTML = '<div>해당 조직의 관리자가 없습니다</div>';
+                    }
+                })
+                .catch(error => {
+                    adminList.innerHTML = `<div class="error-message">관리자 목록 조회 실패: ${error.message}</div>`;
+                });
+        });
+    });
+
+    // 클립보드 복사 함수
+    function copyToClipboard(elementId) {
+        const element = document.getElementById(elementId);
+        const text = element.textContent;
+
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+
+        // 복사 완료 알림
+        const originalText = element.parentElement.querySelector('.copy-btn').textContent;
+        element.parentElement.querySelector('.copy-btn').textContent = '복사됨!';
+        setTimeout(() => {
+            element.parentElement.querySelector('.copy-btn').textContent = originalText;
+        }, 1000);
+    }
+</script>
+</body>
+</html>

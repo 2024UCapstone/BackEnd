@@ -1,13 +1,12 @@
 package capston2024.bustracker.handler;
 
-import capston2024.bustracker.domain.auth.TokenInfo;
+import capston2024.bustracker.domain.Token;
 import capston2024.bustracker.exception.TokenException;
 import capston2024.bustracker.service.TokenService;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -107,10 +106,10 @@ public class JwtTokenProvider {
 
     public String reissueAccessToken(String accessToken) {
         if (StringUtils.hasText(accessToken)) {
-            TokenInfo tokenInfo = tokenService.findByAccessToken(accessToken);
-            if (tokenInfo != null && validateToken(tokenInfo.getRefreshToken())) {
-                String reissueAccessToken = generateAccessToken(getAuthentication(tokenInfo.getRefreshToken()));
-                tokenService.updateAccessToken(tokenInfo.getUsername(), reissueAccessToken);
+            Token token = tokenService.findByAccessToken(accessToken);
+            if (token != null && validateToken(token.getRefreshToken())) {
+                String reissueAccessToken = generateAccessToken(getAuthentication(token.getRefreshToken()));
+                tokenService.updateAccessToken(token.getUsername(), reissueAccessToken);
                 return reissueAccessToken;
             }
         }

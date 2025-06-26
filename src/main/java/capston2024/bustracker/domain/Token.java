@@ -1,4 +1,4 @@
-package capston2024.bustracker.domain.auth;
+package capston2024.bustracker.domain;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -12,7 +12,7 @@ import java.util.Date;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TokenInfo {
+public class Token {
     @Id
     private String id;
     private String username;

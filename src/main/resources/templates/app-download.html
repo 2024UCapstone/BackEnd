@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${appType + ' 앱 다운로드'}">앱 다운로드</title>
+    <style>
+        /* 기본 스타일 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #0066cc;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            color: #0066cc;
+            margin: 25px 0 15px;
+            font-size: 1.4em;
+        }
+
+        /* 앱 정보 영역 */
+        .app-info {
+            background-color: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .app-info img {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+        }
+
+        .app-info p {
+            margin-bottom: 25px;
+            font-size: 18px;
+            color: #555;
+        }
+
+        /* 다운로드 버튼 */
+        .download-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .download-btn {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: white;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .download-btn img {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+            margin-bottom: 0;
+        }
+
+        .android {
+            background-color: #3ddc84;
+        }
+
+        .ios {
+            background-color: #0066cc;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* QR 코드 섹션 */
+        .qr-code-section {
+            margin: 30px 0;
+            padding: 20px 0;
+            border-top: 1px solid #eee;
+            border-bottom: 1px solid #eee;
+        }
+
+        .qr-code-container {
+            display: flex;
+            justify-content: center;
+        }
+
+        .qr-code {
+            text-align: center;
+        }
+
+        .qr-code img {
+            width: 150px;
+            height: 150px;
+            margin-bottom: 10px;
+        }
+
+        .qr-code p {
+            font-size: 14px;
+            color: #666;
+        }
+
+        /* 앱 설치 안내 */
+        .app-instructions {
+            text-align: left;
+            margin-top: 20px;
+        }
+
+        .app-instructions ol {
+            margin-left: 25px;
+        }
+
+        .app-instructions li {
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        /* 푸터 */
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #777;
+            font-size: 14px;
+        }
+
+        /* 반응형 스타일 */
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+            }
+
+            .app-info {
+                padding: 20px;
+            }
+
+            .download-buttons {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1 th:text="${appType + ' 앱 다운로드'}">앱 다운로드</h1>
+    </header>
+    <main>
+        <div class="app-info">
+            <img th:if="${appType == 'USER'}" src="/images/user-app-icon.png" alt="USER 앱 아이콘">
+            <img th:if="${appType == 'DRIVER'}" src="/images/driver-app-icon.png" alt="DRIVER 앱 아이콘">
+
+            <p th:if="${appType == 'USER'}">
+                버스 버디 버디 앱을 통해 더 편리하게 서비스를 이용해보세요!
+            </p>
+            <p th:if="${appType == 'DRIVER'}">
+                드라이버 앱을 통해 버스 운행을 관리하고 승객들과 소통하세요!
+            </p>
+
+            <div class="download-buttons">
+                <a th:href="${androidAppUrl}" class="btn download-btn android">
+                    <img src="/images/google-play.png" alt="Google Play">
+                    Google Play에서 다운로드
+                </a>
+                <a th:href="${iosAppUrl}" class="btn download-btn ios">
+                    <img src="/images/app-store.png" alt="App Store">
+                    App Store에서 다운로드
+                </a>
+            </div>
+
+            <!--앱 등록 후, QR코드 삽입 필요-->
+            <div class="qr-code-section">
+                <div class="qr-code-container">
+                    <div th:if="${appType == 'USER'}" class="qr-code">
+                        <img src="/images/user-app-qr.png" alt="USER 앱 QR 코드">
+                        <p>QR 코드를 스캔하여 다운로드</p>
+                    </div>
+                    <div th:if="${appType == 'DRIVER'}" class="qr-code">
+                        <img src="/images/driver-app-qr.png" alt="DRIVER 앱 QR 코드">
+                        <p>QR 코드를 스캔하여 다운로드</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="app-instructions">
+                <h2>앱 설치 후에:</h2>
+                <ol>
+                    <li>앱을 실행하고 로그인을 진행해주세요.</li>
+                    <li>처음 사용하시는 경우, 간단한 가입 절차가 필요합니다.</li>
+                    <li>웹에서 사용하던 같은 계정으로 로그인하시면 모든 정보가 동기화됩니다.</li>
+                </ol>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2024 버스 트래커. All rights reserved.</p>
+    </footer>
+</div>
+</body>
+</html>
