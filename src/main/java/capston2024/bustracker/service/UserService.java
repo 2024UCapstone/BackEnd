@@ -1,8 +1,8 @@
 package capston2024.bustracker.service;
 
 
+import capston2024.bustracker.domain.Auth;
 import capston2024.bustracker.domain.Station;
-import capston2024.bustracker.domain.User;
 import capston2024.bustracker.exception.BusinessException;
 import capston2024.bustracker.exception.ErrorCode;
 import capston2024.bustracker.repository.StationRepository;
@@ -38,10 +38,10 @@ public class UserService {
     public List<Station> getMyStationList(String email) {
         log.info("Email {} 사용자의 내 정류장 목록 조회를 시작합니다.", email);
 
-        User user = userRepository.findByEmail(email)
+        Auth auth = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        List<DBRef> stationRefs = user.getMyStations();
+        List<DBRef> stationRefs = auth.getMyStations();
         log.info("stationRefs : {}", stationRefs);
 
         List<ObjectId> objectIds = stationRefs.stream()
@@ -85,7 +85,7 @@ public class UserService {
                 .and("myStations").not().elemMatch(Criteria.where("$id").is(stationId)));
         Update update = new Update().addToSet("myStations", new DBRef("stations", stationId));
 
-        UpdateResult result = mongoTemplate.updateFirst(query, update, User.class);
+        UpdateResult result = mongoTemplate.updateFirst(query, update, Auth.class);
 
         if (result.getMatchedCount() == 0) {
             log.warn("사용자를 찾을 수 없거나 이미 등록된 정류장입니다: {} - {}", email, stationId);
@@ -109,7 +109,7 @@ public class UserService {
                 .and("myStations").elemMatch(Criteria.where("$id").is(stationId)));
         Update update = new Update().pull("myStations", new DBRef("stations", stationId));
 
-        var result = mongoOperations.updateFirst(query, update, User.class);
+        var result = mongoOperations.updateFirst(query, update, Auth.class);
 
         if (result.getModifiedCount() == 0) {
             log.warn("사용자 {}의 내 정류장 목록에서 정류장 {}을 찾을 수 없습니다.", email, stationId);

@@ -1,7 +1,7 @@
 package capston2024.bustracker.service;
 
-import capston2024.bustracker.domain.auth.OAuthAttributes;
-import capston2024.bustracker.domain.User;
+import capston2024.bustracker.domain.Auth;
+import capston2024.bustracker.util.auth.OAuthAttributes;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.core.GrantedAuthority;
@@ -37,10 +37,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 .getUserInfoEndpoint().getUserNameAttributeName();
 
         OAuthAttributes oAuthAttributes = OAuthAttributes.of(registrationId, attributes);
-        User user = authService.authenticateUser(oAuthAttributes);
+        Auth auth = authService.authenticateUser(oAuthAttributes);
 
         // 사용자의 권한 정보를 가져옵니다.
-        GrantedAuthority authority = new SimpleGrantedAuthority(user.getRoleKey());
+        GrantedAuthority authority = new SimpleGrantedAuthority(auth.getRoleKey());
 
         // OAuth2User 객체를 생성하여 반환합니다.
         return new DefaultOAuth2User(

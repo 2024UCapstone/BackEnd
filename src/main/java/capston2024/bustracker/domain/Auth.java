@@ -1,15 +1,13 @@
 package capston2024.bustracker.domain;
 
 import capston2024.bustracker.config.status.Role;
-import capston2024.bustracker.domain.auth.BaseEntity;
+import capston2024.bustracker.util.auth.BaseEntity;
 import com.mongodb.DBRef;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
-import java.security.Key;
 import java.util.List;
 
 /**
@@ -18,11 +16,11 @@ import java.util.List;
 
 
 @Setter @Getter
-@Document(collection = "Auth")
+@Document(collection = "auth")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class User extends BaseEntity {
+public class Auth extends BaseEntity {
     @Id
     private String id;
 
@@ -31,6 +29,7 @@ public class User extends BaseEntity {
     @NotNull
     private String email; // 이메일
     private String picture;
+    private String password; // 비밀번호 (STAFF 계정용)
     private Role role;
     private String organizationId; // 기관 인증 Id
     private List<DBRef> myStations;

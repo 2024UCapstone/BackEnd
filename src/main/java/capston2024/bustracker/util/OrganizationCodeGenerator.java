@@ -1,14 +1,14 @@
-package capston2024.bustracker.domain.auth;
+package capston2024.bustracker.util;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
-public class SchoolIdGenerator {
+public class OrganizationCodeGenerator {
 
-    public static String generateSchoolId(String schoolName) {
+    public static String generateOrganizationCode(String organizationName) {
         // 1. 공백 제거 및 소문자 변환
-        String trimmedName = schoolName.trim().toLowerCase();
+        String trimmedName = organizationName.trim().toLowerCase();
 
         // 2. SHA-256 해시 생성
         String hashedName = hashString(trimmedName);

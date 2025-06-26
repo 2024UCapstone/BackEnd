@@ -27,7 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class BusLocationWebSocketCsvHandler extends TextWebSocketHandler {
 
-    private final BusService busLocationService;
+    private final BusService busService;
     private final Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
 
     @Override
@@ -47,7 +47,7 @@ public class BusLocationWebSocketCsvHandler extends TextWebSocketHandler {
         String csvData = message.getPayload();
 
         // IoT 디바이스로부터 받은 데이터 처리
-        busLocationService.processBusLocationAsync(csvData)
+        busService.processBusLocationAsync(csvData)
                 .thenAccept(bus -> {
                     try {
                         // IoT 디바이스에게 처리 완료 메시지 전송

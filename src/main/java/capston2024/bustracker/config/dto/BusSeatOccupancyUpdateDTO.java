@@ -3,7 +3,6 @@ package capston2024.bustracker.config.dto;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
-import org.springframework.data.mongodb.core.geo.GeoJsonPoint;
 
 import java.time.Instant;
 
@@ -13,7 +12,7 @@ import java.time.Instant;
 @RequiredArgsConstructor
 @Getter
 @Setter
-public class BusSeatUpdateDTO {
+public class BusSeatOccupancyUpdateDTO {
     private final String busNumber;
     private final int seats;
     private final Instant timestamp;
