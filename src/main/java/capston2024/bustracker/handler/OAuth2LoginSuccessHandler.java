@@ -32,8 +32,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final TokenService tokenService;
 
     // 앱 스킴 URL 정의
-    private static final String IOS_APP_SCHEME_URI = "org.reactjs.native.example.Busbuddybuddy://oauth2callback";
-    private static final String ANDROID_APP_SCHEME_URI = "com.busbuddybuddy://oauth2callback";
+    private static final String IOS_APP_SCHEME_URI = "kr.devse.bbb.hardware.Busbuddybuddy://oauth2callback";
+    private static final String ANDROID_APP_SCHEME_URI = "kr.devse.bbb.hardware.busbuddybuddy://oauth2callback";
     private static final long REFRESH_TOKEN_ROTATION_TIME = 1000 * 60 * 60 * 24 * 7L; // 7일
 
     /**

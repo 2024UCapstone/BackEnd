@@ -6,7 +6,7 @@ import capston2024.bustracker.domain.Station;
 import capston2024.bustracker.exception.BusinessException;
 import capston2024.bustracker.exception.ErrorCode;
 import capston2024.bustracker.repository.StationRepository;
-import capston2024.bustracker.repository.UserRepository;
+import capston2024.bustracker.repository.AuthRepository;
 import com.mongodb.DBRef;
 import com.mongodb.client.result.UpdateResult;
 import lombok.AllArgsConstructor;
@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public class UserService {
 
-    private final UserRepository userRepository;
+    private final AuthRepository authRepository;
     private final StationRepository stationRepository;
     private final MongoTemplate mongoTemplate;
     private final MongoOperations mongoOperations;
@@ -38,7 +38,7 @@ public class UserService {
     public List<Station> getMyStationList(String email) {
         log.info("Email {} 사용자의 내 정류장 목록 조회를 시작합니다.", email);
 
-        Auth auth = userRepository.findByEmail(email)
+        Auth auth = authRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         List<DBRef> stationRefs = auth.getMyStations();
