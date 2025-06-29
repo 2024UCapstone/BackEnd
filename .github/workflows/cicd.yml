@@ -33,8 +33,8 @@ jobs:
             OAUTH_SECRET_KEY=${{ secrets.OAUTH_SECRET_KEY }}
             UNIV_API_KEY=${{ secrets.UNIV_API_KEY }}
             KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
             KAKAO_JAVASCRIPT_KEY=${{ secrets.KAKAO_JAVASCRIPT_KEY }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -42,7 +42,7 @@ jobs:
         id: prepare
         run: |
           # JSON 데이터를 환경 변수로 설정
-          DEPLOY_JSON="{\"image\":\"taehun2/bustracker:${{ github.ref_name }}\",\"env\":{\"SPRING_PROFILES_ACTIVE\":\"prod\",\"DATABASE_NAME\":\"${{ secrets.DATABASE_NAME }}\",\"MONGODB_URI\":\"${{ secrets.MONGODB_URI }}\",\"OAUTH_CLIENT_ID\":\"${{ secrets.OAUTH_CLIENT_ID }}\",\"OAUTH_SECRET_KEY\":\"${{ secrets.OAUTH_SECRET_KEY }}\",\"UNIV_API_KEY\":\"${{ secrets.UNIV_API_KEY }}\",\"KAKAO_REST_API_KEY\":\"${{ secrets.KAKAO_REST_API_KEY }}\",\"JWT_SECRET\":\"${{ secrets.JWT_SECRET }}\"}}"
+          DEPLOY_JSON="{\"image\":\"taehun2/bustracker:${{ github.ref_name }}\",\"env\":{\"SPRING_PROFILES_ACTIVE\":\"prod\",\"DATABASE_NAME\":\"${{ secrets.DATABASE_NAME }}\",\"MONGODB_URI\":\"${{ secrets.MONGODB_URI }}\",\"OAUTH_CLIENT_ID\":\"${{ secrets.OAUTH_CLIENT_ID }}\",\"OAUTH_SECRET_KEY\":\"${{ secrets.OAUTH_SECRET_KEY }}\",\"UNIV_API_KEY\":\"${{ secrets.UNIV_API_KEY }}\",\"KAKAO_REST_API_KEY\":\"${{ secrets.KAKAO_REST_API_KEY }}\",\"KAKAO_JAVASCRIPT_KEY\":\"${{ secrets.KAKAO_JAVASCRIPT_KEY }}\",\"JWT_SECRET\":\"${{ secrets.JWT_SECRET }}\"}}"
           
           # JSON 데이터로부터 서명 생성
           SIGNATURE=$(echo -n "$DEPLOY_JSON" | openssl dgst -sha256 -hmac "${{ secrets.WEBHOOK_SECRET }}" | cut -d' ' -f2)
