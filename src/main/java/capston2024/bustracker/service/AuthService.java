@@ -21,6 +21,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.stereotype.Service;
@@ -62,15 +64,26 @@ public class AuthService {
             throw new UnauthorizedException("조직 ID 또는 비밀번호가 일치하지 않습니다.");
         }
 
-        // 인증 객체 생성
+        // OAuth2User와 동일한 형태의 인증 객체 생성
         Collection<? extends GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(auth.getRoleKey()));
-        Authentication authentication = new UsernamePasswordAuthenticationToken(auth, null, authorities);
+
+        // 사용자 속성 맵 생성 (OAuth2User와 동일한 구조)
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put("email", auth.getEmail());
+        attributes.put("name", auth.getName());
+        attributes.put("sub", auth.getEmail()); // subject 클레임
+
+        // DefaultOAuth2User 객체 생성 (OAuth2 로그인과 동일한 구조)
+        OAuth2User oAuth2User = new DefaultOAuth2User(authorities, attributes, "sub");
+
+        // OAuth2AuthenticationToken 생성
+        Authentication authentication = new OAuth2AuthenticationToken(oAuth2User, authorities, "staff-login");
 
         // 토큰 발급 로직
         String accessToken = issueTokens(authentication);
 
         Map<String, String> response = new HashMap<>();
-        response.put("token", accessToken);
+        response.put("accessToken", accessToken); // 키를 accessToken으로 변경
         response.put("name", auth.getName());
         response.put("organizationId", auth.getOrganizationId());
 

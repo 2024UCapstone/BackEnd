@@ -2,77 +2,1277 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>조직 관리자 대시보드</title>
+    <script th:if="${kakaoApiKey != null and !#strings.isEmpty(kakaoApiKey)}"
+            type="text/javascript"
+            th:src="|//dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoApiKey}&libraries=services|"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .tab-navigation {
+            display: flex;
+            background: white;
+            border-radius: 10px 10px 0 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 1rem;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: #667eea;
+        }
+
+        .tab-btn:hover {
+            background: #e9ecef;
+        }
+
+        .tab-btn.active:hover {
+            background: white;
+        }
+
+        .tab-content {
+            background: white;
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 2rem;
+            min-height: 600px;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        /* 폼 스타일 */
+        .form-section {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .form-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #495057;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            align-items: end;
+        }
+
+        .form-group {
+            flex: 1;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25);
+        }
+
+        /* 버튼 스타일 */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        /* 지도 스타일 */
+        #map {
+            width: 100%;
+            height: 400px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        /* 테이블 스타일 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .data-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .data-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* 목록 아이템 스타일 */
+        .list-item {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s;
+        }
+
+        .list-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .list-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .list-item-title {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .list-item-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* 메시지 스타일 */
+        .message {
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* 로딩 스타일 */
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #6c757d;
+        }
+
+        /* 정류장 순서 관리 */
+        .station-order {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .station-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem;
+            margin: 0.5rem 0;
+            background: white;
+            border-radius: 5px;
+            cursor: move;
+        }
+
+        .station-item:hover {
+            background: #e9ecef;
+        }
+
+        .station-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 1rem;
+        }
+    </style>
 </head>
 <body>
-<h1>조직 관리자 대시보드</h1>
-<h2 th:text="|${user.name}님, 환영합니다.|"></h2>
-<p th:text="|소속: ${user.organizationId}|"></p>
+<header class="header">
+    <h1>조직 관리자 대시보드</h1>
+    <div class="user-info">
+        <span th:text="|${user.name}님 (${user.organizationId})|">관리자님</span>
+        <button class="logout-btn" onclick="logout()">로그아웃</button>
+    </div>
+</header>
+
+<div class="container">
+    <!-- 탭 네비게이션 -->
+    <div class="tab-navigation">
+        <button class="tab-btn active" onclick="showTab('stations')">1. 정류장 관리</button>
+        <button class="tab-btn" onclick="showTab('routes')">2. 노선 관리</button>
+        <button class="tab-btn" onclick="showTab('buses')">3. 버스 관리</button>
+        <button class="tab-btn" onclick="showTab('overview')">현황 보기</button>
+    </div>
+
+    <div class="tab-content">
+        <!-- 정류장 관리 탭 -->
+        <div id="stations" class="tab-pane active">
+            <div class="form-section">
+                <h3 class="form-title">새 정류장 추가</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="station-name">정류장 이름</label>
+                        <input type="text" id="station-name" placeholder="정류장 이름을 입력하세요">
+                    </div>
+                    <button class="btn btn-primary" id="map-select-btn" onclick="addStationFromMap()">지도에서 위치 선택</button>
+                </div>
+                <div id="map"></div>
+                <div class="form-row" style="margin-top: 1rem;">
+                    <div class="form-group">
+                        <label for="station-lat">위도 (Latitude)</label>
+                        <input type="number" id="station-lat" step="0.000001"
+                               placeholder="예: 37.566535"
+                               min="33" max="39"
+                               oninput="validateCoordinate('lat', this.value)">
+                        <small style="color: #6c757d;">한국 지역: 33~39 사이</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="station-lng">경도 (Longitude)</label>
+                        <input type="number" id="station-lng" step="0.000001"
+                               placeholder="예: 126.977969"
+                               min="124" max="132"
+                               oninput="validateCoordinate('lng', this.value)">
+                        <small style="color: #6c757d;">한국 지역: 124~132 사이</small>
+                    </div>
+                    <div class="form-group" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <button class="btn btn-success" onclick="createStation()">정류장 생성</button>
+                        <button class="btn btn-secondary" onclick="usePresetLocation()">주요 도시 선택</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="stations-message" class="message"></div>
+
+            <h3>기존 정류장 목록</h3>
+            <div id="stations-list" class="loading">정류장 목록을 불러오는 중...</div>
+        </div>
+
+        <!-- 노선 관리 탭 -->
+        <div id="routes" class="tab-pane">
+            <div class="form-section">
+                <h3 class="form-title">새 노선 추가</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="route-name">노선 이름</label>
+                        <input type="text" id="route-name" placeholder="노선 이름을 입력하세요">
+                    </div>
+                    <button class="btn btn-primary" onclick="showStationSelector()">정류장 선택</button>
+                </div>
+
+                <div id="station-selector" style="display: none;">
+                    <h4>정류장 순서 설정</h4>
+                    <p>정류장을 선택하고 순서를 드래그로 조정하세요.</p>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="available-stations">사용 가능한 정류장</label>
+                            <select id="available-stations" size="8" style="height: 200px;">
+                                <!-- 정류장 목록이 동적으로 추가됩니다 -->
+                            </select>
+                        </div>
+                        <div style="display: flex; flex-direction: column; justify-content: center; gap: 1rem;">
+                            <button class="btn btn-secondary" onclick="addStationToRoute()">→ 추가</button>
+                            <button class="btn btn-secondary" onclick="removeStationFromRoute()">← 제거</button>
+                        </div>
+                        <div class="form-group">
+                            <label>선택된 정류장 (순서대로)</label>
+                            <div id="selected-stations" class="station-order">
+                                <!-- 선택된 정류장들이 표시됩니다 -->
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-success" onclick="createRoute()">노선 생성</button>
+                </div>
+            </div>
+
+            <div id="routes-message" class="message"></div>
+
+            <h3>기존 노선 목록</h3>
+            <div id="routes-list" class="loading">노선 목록을 불러오는 중...</div>
+        </div>
+
+        <!-- 버스 관리 탭 -->
+        <div id="buses" class="tab-pane">
+            <div class="form-section">
+                <h3 class="form-title">새 버스 추가</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="bus-real-number">버스 번호</label>
+                        <input type="text" id="bus-real-number" placeholder="예: 101번">
+                    </div>
+                    <div class="form-group">
+                        <label for="bus-route">노선 선택</label>
+                        <select id="bus-route">
+                            <option value="">노선을 선택하세요</option>
+                            <!-- 노선 목록이 동적으로 추가됩니다 -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="bus-total-seats">총 좌석 수</label>
+                        <input type="number" id="bus-total-seats" min="1" value="30">
+                    </div>
+                    <button class="btn btn-success" onclick="createBus()">버스 생성</button>
+                </div>
+            </div>
+
+            <div id="buses-message" class="message"></div>
+
+            <h3>기존 버스 목록</h3>
+            <div id="buses-list" class="loading">버스 목록을 불러오는 중...</div>
+        </div>
+
+        <!-- 현황 보기 탭 -->
+        <div id="overview" class="tab-pane">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                <div class="form-section">
+                    <h3 class="form-title">정류장 현황</h3>
+                    <div id="overview-stations" class="loading">로딩 중...</div>
+                </div>
+                <div class="form-section">
+                    <h3 class="form-title">노선 현황</h3>
+                    <div id="overview-routes" class="loading">로딩 중...</div>
+                </div>
+                <div class="form-section">
+                    <h3 class="form-title">버스 현황</h3>
+                    <div id="overview-buses" class="loading">로딩 중...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 숨겨진 입력 필드 -->
 <input type="hidden" id="auth-token" th:value="${token}">
 
-<h2>버스 관리</h2>
-<table border="1">
-    <thead>
-    <tr>
-        <th>버스 번호</th>
-        <th>실제 번호</th>
-        <th>노선</th>
-        <th>운행 상태</th>
-        <th>작업</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr th:each="bus : ${buses}">
-        <td th:text="${bus.busNumber}"></td>
-        <td th:text="${bus.busRealNumber}"></td>
-        <td th:text="${bus.routeName}"></td>
-        <td th:text="${bus.isOperate} ? '운행중' : '중지'"></td>
-        <td>
-            <button>수정</button>
-            <button>삭제</button>
-        </td>
-    </tr>
-    </tbody>
-</table>
+<script>
+    // 전역 변수
+    let map;
+    let currentMarker;
+    let selectedStations = [];
+    let stationsData = [];
+    let routesData = [];
+    let busesData = [];
 
-<h2>노선 관리</h2>
-<table border="1">
-    <thead>
-    <tr>
-        <th>노선 이름</th>
-        <th>작업</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr th:each="route : ${routes}">
-        <td th:text="${route.routeName}"></td>
-        <td>
-            <button>수정</button>
-            <button>삭제</button>
-        </td>
-    </tr>
-    </tbody>
-</table>
+    // 카카오 지도 로드 확인 및 초기화
+    function initializeApp() {
+        console.log('앱 초기화 시작');
 
+        // API 키 확인 (개발용 - 운영시에는 제거)
+        const scripts = document.querySelectorAll('script[src*="dapi.kakao.com"]');
+        if (scripts.length > 0) {
+            console.log('카카오 API 스크립트 로드됨:', scripts[0].src);
+        } else {
+            console.warn('카카오 API 스크립트가 없습니다.');
+        }
 
-<h2>정류장 관리</h2>
-<table border="1">
-    <thead>
-    <tr>
-        <th>정류장 이름</th>
-        <th>작업</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr th:each="station : ${stations}">
-        <td th:text="${station.name}"></td>
-        <td>
-            <button>수정</button>
-            <button>삭제</button>
-        </td>
-    </tr>
-    </tbody>
-</table>
+        // API 키가 없는 경우 처리
+        if (window.kakaoApiNotAvailable) {
+            console.warn('카카오 API를 사용할 수 없습니다. 지도 없이 초기화합니다.');
+            initializeWithoutMap();
+            loadAllData();
+            return;
+        }
 
+        // 카카오 객체가 존재하는지 확인 (최대 10초 대기)
+        let retryCount = 0;
+        const maxRetries = 50; // 10초 (200ms * 50)
+
+        function checkKakaoSDK() {
+            retryCount++;
+
+            if (typeof kakao === 'undefined') {
+                if (retryCount < maxRetries) {
+                    console.log(`카카오 SDK 로딩 중... (${retryCount}/${maxRetries})`);
+                    setTimeout(checkKakaoSDK, 200);
+                    return;
+                } else {
+                    console.error('카카오 SDK 로드 실패 - 타임아웃');
+                    initializeWithoutMap();
+                    loadAllData();
+                    return;
+                }
+            }
+
+            // 카카오 지도 API 로드
+            if (typeof kakao.maps === 'undefined') {
+                console.log('카카오 지도 API 로딩 중...');
+                try {
+                    kakao.maps.load(function() {
+                        console.log('카카오 지도 API 로드 완료');
+                        initializeMap();
+                        loadAllData();
+                    });
+                } catch (error) {
+                    console.error('카카오 지도 API 로드 실패:', error);
+                    initializeWithoutMap();
+                    loadAllData();
+                }
+            } else {
+                console.log('카카오 지도 API 이미 로드됨');
+                initializeMap();
+                loadAllData();
+            }
+        }
+
+        checkKakaoSDK();
+    }
+
+    // 지도 없이 초기화
+    function initializeWithoutMap() {
+        console.log('지도 없이 초기화');
+        const mapContainer = document.getElementById('map');
+        mapContainer.innerHTML = `
+                <div style="height: 400px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; padding: 2rem;">
+                    <div>
+                        <h3 style="margin-bottom: 1rem;">📍 위치 입력 모드</h3>
+                        <p style="margin-bottom: 0.5rem;">지도가 비활성화되어 있습니다.</p>
+                        <p style="margin-bottom: 1rem;">위도와 경도를 직접 입력해주세요.</p>
+                        <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 5px; font-size: 0.9rem;">
+                            <strong>주요 도시 좌표 참고:</strong><br>
+                            서울시청: 37.566535, 126.977969<br>
+                            부산시청: 35.179665, 129.075089<br>
+                            대구시청: 35.871435, 128.601445<br>
+                            인천시청: 37.456256, 126.705206
+                        </div>
+                    </div>
+                </div>
+            `;
+
+        // 지도 관련 버튼 텍스트 변경
+        const mapButton = document.getElementById('map-select-btn');
+        if (mapButton) {
+            mapButton.textContent = '📍 좌표 입력 가이드';
+            mapButton.className = 'btn btn-secondary';
+            mapButton.onclick = function() {
+                showCoordinateGuide();
+            };
+        }
+    }
+
+    // 좌표 유효성 검사
+    function validateCoordinate(type, value) {
+        const input = document.getElementById(`station-${type}`);
+        const numValue = parseFloat(value);
+
+        if (type === 'lat') {
+            if (numValue < 33 || numValue > 39) {
+                input.style.borderColor = '#dc3545';
+                input.style.backgroundColor = '#f8d7da';
+            } else {
+                input.style.borderColor = '#28a745';
+                input.style.backgroundColor = '#d4edda';
+            }
+        } else if (type === 'lng') {
+            if (numValue < 124 || numValue > 132) {
+                input.style.borderColor = '#dc3545';
+                input.style.backgroundColor = '#f8d7da';
+            } else {
+                input.style.borderColor = '#28a745';
+                input.style.backgroundColor = '#d4edda';
+            }
+        }
+    }
+
+    // 주요 도시 프리셋 선택
+    function usePresetLocation() {
+        const presets = {
+            '서울시청': { lat: 37.566535, lng: 126.977969 },
+            '부산시청': { lat: 35.179665, lng: 129.075089 },
+            '대구시청': { lat: 35.871435, lng: 128.601445 },
+            '인천시청': { lat: 37.456256, lng: 126.705206 },
+            '광주시청': { lat: 35.160032, lng: 126.851338 },
+            '대전시청': { lat: 36.350469, lng: 127.384846 },
+            '울산시청': { lat: 35.539396, lng: 129.311378 },
+            '세종시청': { lat: 36.480041, lng: 127.289403 }
+        };
+
+        let options = '주요 도시를 선택하세요:\n\n';
+        const cities = Object.keys(presets);
+        cities.forEach((city, index) => {
+            options += `${index + 1}. ${city}\n`;
+        });
+
+        const choice = prompt(options + '\n숫자를 입력하세요 (1-8):');
+        const cityIndex = parseInt(choice) - 1;
+
+        if (cityIndex >= 0 && cityIndex < cities.length) {
+            const selectedCity = cities[cityIndex];
+            const coords = presets[selectedCity];
+
+            document.getElementById('station-lat').value = coords.lat;
+            document.getElementById('station-lng').value = coords.lng;
+
+            // 유효성 검사 실행
+            validateCoordinate('lat', coords.lat);
+            validateCoordinate('lng', coords.lng);
+
+            showMessage('stations-message', `${selectedCity} 좌표가 설정되었습니다.`, 'success');
+        }
+    }
+
+    // 초기화 - DOM 로드와 윈도우 로드 모두 처리
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeApp);
+    } else {
+        initializeApp();
+    }
+
+    // 토큰 가져오기
+    function getAuthToken() {
+        return document.getElementById('auth-token').value;
+    }
+
+    // API 호출 헬퍼
+    async function apiCall(url, options = {}) {
+        const token = getAuthToken();
+        const headers = {
+            'Content-Type': 'application/json',
+            ...options.headers
+        };
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(url, {
+            ...options,
+            headers
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+    }
+
+    // 탭 전환
+    function showTab(tabName) {
+        // 모든 탭 버튼과 패널 비활성화
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+
+        // 선택된 탭 활성화
+        event.target.classList.add('active');
+        document.getElementById(tabName).classList.add('active');
+
+        // 탭별 데이터 로드
+        if (tabName === 'routes') {
+            loadAvailableStations();
+            loadRoutes();
+        } else if (tabName === 'buses') {
+            loadRoutesForBus();
+            loadBuses();
+        } else if (tabName === 'overview') {
+            loadOverview();
+        }
+    }
+
+    // 지도 초기화
+    function initializeMap() {
+        try {
+            if (typeof kakao === 'undefined' || typeof kakao.maps === 'undefined') {
+                console.error('카카오 지도 API가 로드되지 않았습니다.');
+                document.getElementById('map').innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc3545;">카카오 지도를 로드할 수 없습니다. 잠시 후 다시 시도해주세요.</div>';
+                return;
+            }
+
+            const mapContainer = document.getElementById('map');
+            const mapOption = {
+                center: new kakao.maps.LatLng(37.566826, 126.9786567),
+                level: 3
+            };
+
+            map = new kakao.maps.Map(mapContainer, mapOption);
+
+            // 지도 클릭 이벤트
+            kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
+                const latlng = mouseEvent.latLng;
+
+                // 기존 마커 제거
+                if (currentMarker) {
+                    currentMarker.setMap(null);
+                }
+
+                // 새 마커 생성
+                currentMarker = new kakao.maps.Marker({
+                    position: latlng
+                });
+                currentMarker.setMap(map);
+
+                // 좌표 입력 필드 업데이트
+                document.getElementById('station-lat').value = latlng.getLat();
+                document.getElementById('station-lng').value = latlng.getLng();
+            });
+
+            console.log('지도 초기화 완료');
+        } catch (error) {
+            console.error('지도 초기화 실패:', error);
+            document.getElementById('map').innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc3545;">지도 초기화에 실패했습니다. 페이지를 새로고침해주세요.</div>';
+        }
+    }
+
+    // 모든 데이터 로드
+    async function loadAllData() {
+        try {
+            await loadStations();
+        } catch (error) {
+            console.error('데이터 로드 실패:', error);
+        }
+    }
+
+    // 정류장 목록 로드
+    async function loadStations() {
+        try {
+            const response = await apiCall('/api/station');
+            stationsData = response.data || [];
+            renderStations();
+        } catch (error) {
+            console.error('정류장 로드 실패:', error);
+            document.getElementById('stations-list').innerHTML = '<p>정류장 목록을 불러오는데 실패했습니다.</p>';
+        }
+    }
+
+    // 정류장 목록 렌더링
+    function renderStations() {
+        const container = document.getElementById('stations-list');
+        if (stationsData.length === 0) {
+            container.innerHTML = '<p>등록된 정류장이 없습니다. 먼저 정류장을 생성해주세요.</p>';
+            return;
+        }
+
+        container.innerHTML = stationsData.map(station => `
+                <div class="list-item">
+                    <div class="list-item-header">
+                        <span class="list-item-title">${station.name}</span>
+                        <div class="list-item-actions">
+                            <button class="btn btn-danger" onclick="deleteStation('${station.id}')">삭제</button>
+                        </div>
+                    </div>
+                    <p>위치: ${station.location ? `${station.location.y.toFixed(6)}, ${station.location.x.toFixed(6)}` : '위치 정보 없음'}</p>
+                </div>
+            `).join('');
+    }
+
+    // 정류장 생성
+    async function createStation() {
+        const name = document.getElementById('station-name').value.trim();
+        const lat = parseFloat(document.getElementById('station-lat').value);
+        const lng = parseFloat(document.getElementById('station-lng').value);
+
+        if (!name) {
+            showMessage('stations-message', '정류장 이름을 입력해주세요.', 'error');
+            return;
+        }
+
+        if (!lat || !lng) {
+            showMessage('stations-message', '위도와 경도를 입력해주세요.', 'error');
+            return;
+        }
+
+        // 한국 지역 좌표 유효성 검사
+        if (lat < 33 || lat > 39) {
+            showMessage('stations-message', '위도가 유효하지 않습니다. 한국 지역은 33~39 사이입니다.', 'error');
+            return;
+        }
+
+        if (lng < 124 || lng > 132) {
+            showMessage('stations-message', '경도가 유효하지 않습니다. 한국 지역은 124~132 사이입니다.', 'error');
+            return;
+        }
+
+        try {
+            await apiCall('/api/station', {
+                method: 'POST',
+                body: JSON.stringify({
+                    name: name,
+                    latitude: lat,
+                    longitude: lng
+                })
+            });
+
+            showMessage('stations-message', '정류장이 성공적으로 생성되었습니다.', 'success');
+
+            // 폼 리셋
+            document.getElementById('station-name').value = '';
+            document.getElementById('station-lat').value = '';
+            document.getElementById('station-lng').value = '';
+
+            // 입력 필드 스타일 리셋
+            ['station-lat', 'station-lng'].forEach(id => {
+                const input = document.getElementById(id);
+                input.style.borderColor = '#ced4da';
+                input.style.backgroundColor = 'white';
+            });
+
+            // 목록 새로고침
+            await loadStations();
+        } catch (error) {
+            console.error('정류장 생성 실패:', error);
+            showMessage('stations-message', '정류장 생성에 실패했습니다.', 'error');
+        }
+    }
+
+    // 정류장 삭제
+    async function deleteStation(stationId) {
+        if (!confirm('이 정류장을 삭제하시겠습니까?')) {
+            return;
+        }
+
+        try {
+            await apiCall(`/api/station/${stationId}`, {
+                method: 'DELETE'
+            });
+
+            showMessage('stations-message', '정류장이 삭제되었습니다.', 'success');
+            await loadStations();
+        } catch (error) {
+            console.error('정류장 삭제 실패:', error);
+            showMessage('stations-message', '정류장 삭제에 실패했습니다.', 'error');
+        }
+    }
+
+    // 메시지 표시
+    function showMessage(elementId, message, type) {
+        const messageEl = document.getElementById(elementId);
+        messageEl.textContent = message;
+        messageEl.className = `message ${type}`;
+        messageEl.style.display = 'block';
+
+        setTimeout(() => {
+            messageEl.style.display = 'none';
+        }, 5000);
+    }
+
+    // 노선 관련 함수들
+    function showStationSelector() {
+        document.getElementById('station-selector').style.display = 'block';
+        loadAvailableStations();
+    }
+
+    function loadAvailableStations() {
+        const select = document.getElementById('available-stations');
+        select.innerHTML = stationsData.map(station =>
+            `<option value="${station.id}">${station.name}</option>`
+        ).join('');
+    }
+
+    function addStationToRoute() {
+        const select = document.getElementById('available-stations');
+        const selectedOption = select.options[select.selectedIndex];
+
+        if (!selectedOption) return;
+
+        const station = {
+            id: selectedOption.value,
+            name: selectedOption.text
+        };
+
+        if (!selectedStations.find(s => s.id === station.id)) {
+            selectedStations.push(station);
+            renderSelectedStations();
+        }
+    }
+
+    function removeStationFromRoute() {
+        const container = document.getElementById('selected-stations');
+        const selectedItem = container.querySelector('.station-item.selected');
+
+        if (selectedItem) {
+            const stationId = selectedItem.dataset.stationId;
+            selectedStations = selectedStations.filter(s => s.id !== stationId);
+            renderSelectedStations();
+        }
+    }
+
+    function renderSelectedStations() {
+        const container = document.getElementById('selected-stations');
+        container.innerHTML = selectedStations.map((station, index) => `
+                <div class="station-item" data-station-id="${station.id}" onclick="selectStationItem(this)">
+                    <div style="display: flex; align-items: center;">
+                        <span class="station-number">${index + 1}</span>
+                        <span>${station.name}</span>
+                    </div>
+                    <button class="btn btn-danger" onclick="removeStationById('${station.id}')" style="padding: 0.25rem 0.5rem;">×</button>
+                </div>
+            `).join('');
+    }
+
+    function selectStationItem(element) {
+        document.querySelectorAll('.station-item').forEach(item => item.classList.remove('selected'));
+        element.classList.add('selected');
+    }
+
+    function removeStationById(stationId) {
+        selectedStations = selectedStations.filter(s => s.id !== stationId);
+        renderSelectedStations();
+    }
+
+    // 노선 생성
+    async function createRoute() {
+        const routeName = document.getElementById('route-name').value.trim();
+
+        if (!routeName) {
+            showMessage('routes-message', '노선 이름을 입력해주세요.', 'error');
+            return;
+        }
+
+        if (selectedStations.length < 2) {
+            showMessage('routes-message', '최소 2개 이상의 정류장을 선택해주세요.', 'error');
+            return;
+        }
+
+        try {
+            const stations = selectedStations.map((station, index) => ({
+                sequence: index + 1,
+                stationId: station.id
+            }));
+
+            await apiCall('/api/routes', {
+                method: 'POST',
+                body: JSON.stringify({
+                    routeName: routeName,
+                    stations: stations
+                })
+            });
+
+            showMessage('routes-message', '노선이 성공적으로 생성되었습니다.', 'success');
+
+            // 폼 리셋
+            document.getElementById('route-name').value = '';
+            selectedStations = [];
+            renderSelectedStations();
+            document.getElementById('station-selector').style.display = 'none';
+
+            // 목록 새로고침
+            await loadRoutes();
+        } catch (error) {
+            console.error('노선 생성 실패:', error);
+            showMessage('routes-message', '노선 생성에 실패했습니다.', 'error');
+        }
+    }
+
+    // 노선 목록 로드
+    async function loadRoutes() {
+        try {
+            const response = await apiCall('/api/routes');
+            routesData = response.data || [];
+            renderRoutes();
+        } catch (error) {
+            console.error('노선 로드 실패:', error);
+            document.getElementById('routes-list').innerHTML = '<p>노선 목록을 불러오는데 실패했습니다.</p>';
+        }
+    }
+
+    // 노선 목록 렌더링
+    function renderRoutes() {
+        const container = document.getElementById('routes-list');
+        if (routesData.length === 0) {
+            container.innerHTML = '<p>등록된 노선이 없습니다. 먼저 정류장을 생성한 후 노선을 만들어주세요.</p>';
+            return;
+        }
+
+        container.innerHTML = routesData.map(route => `
+                <div class="list-item">
+                    <div class="list-item-header">
+                        <span class="list-item-title">${route.routeName}</span>
+                        <div class="list-item-actions">
+                            <button class="btn btn-danger" onclick="deleteRoute('${route.id}')">삭제</button>
+                        </div>
+                    </div>
+                    <p>정류장 수: ${route.stations ? route.stations.length : 0}개</p>
+                    <p>정류장: ${route.stations ? route.stations.map(s => s.stationName).join(' → ') : '없음'}</p>
+                </div>
+            `).join('');
+    }
+
+    // 노선 삭제
+    async function deleteRoute(routeId) {
+        if (!confirm('이 노선을 삭제하시겠습니까?')) {
+            return;
+        }
+
+        try {
+            await apiCall(`/api/routes/${routeId}`, {
+                method: 'DELETE'
+            });
+
+            showMessage('routes-message', '노선이 삭제되었습니다.', 'success');
+            await loadRoutes();
+        } catch (error) {
+            console.error('노선 삭제 실패:', error);
+            showMessage('routes-message', '노선 삭제에 실패했습니다.', 'error');
+        }
+    }
+
+    // 버스용 노선 목록 로드
+    function loadRoutesForBus() {
+        const select = document.getElementById('bus-route');
+        select.innerHTML = '<option value="">노선을 선택하세요</option>' +
+            routesData.map(route =>
+                `<option value="${route.id}">${route.routeName}</option>`
+            ).join('');
+    }
+
+    // 버스 생성
+    async function createBus() {
+        const busRealNumber = document.getElementById('bus-real-number').value.trim();
+        const routeId = document.getElementById('bus-route').value;
+        const totalSeats = parseInt(document.getElementById('bus-total-seats').value);
+
+        if (!busRealNumber) {
+            showMessage('buses-message', '버스 번호를 입력해주세요.', 'error');
+            return;
+        }
+
+        if (!routeId) {
+            showMessage('buses-message', '노선을 선택해주세요.', 'error');
+            return;
+        }
+
+        if (!totalSeats || totalSeats < 1) {
+            showMessage('buses-message', '올바른 좌석 수를 입력해주세요.', 'error');
+            return;
+        }
+
+        try {
+            await apiCall('/api/bus', {
+                method: 'POST',
+                body: JSON.stringify({
+                    routeId: routeId,
+                    totalSeats: totalSeats,
+                    busRealNumber: busRealNumber,
+                    isOperate: true
+                })
+            });
+
+            showMessage('buses-message', '버스가 성공적으로 생성되었습니다.', 'success');
+
+            // 폼 리셋
+            document.getElementById('bus-real-number').value = '';
+            document.getElementById('bus-route').value = '';
+            document.getElementById('bus-total-seats').value = '30';
+
+            // 목록 새로고침
+            await loadBuses();
+        } catch (error) {
+            console.error('버스 생성 실패:', error);
+            showMessage('buses-message', '버스 생성에 실패했습니다.', 'error');
+        }
+    }
+
+    // 버스 목록 로드
+    async function loadBuses() {
+        try {
+            const response = await apiCall('/api/bus');
+            busesData = response.data || [];
+            renderBuses();
+        } catch (error) {
+            console.error('버스 로드 실패:', error);
+            document.getElementById('buses-list').innerHTML = '<p>버스 목록을 불러오는데 실패했습니다.</p>';
+        }
+    }
+
+    // 버스 목록 렌더링
+    function renderBuses() {
+        const container = document.getElementById('buses-list');
+        if (busesData.length === 0) {
+            container.innerHTML = '<p>등록된 버스가 없습니다. 먼저 노선을 생성한 후 버스를 등록해주세요.</p>';
+            return;
+        }
+
+        container.innerHTML = busesData.map(bus => `
+                <div class="list-item">
+                    <div class="list-item-header">
+                        <span class="list-item-title">버스 ${bus.busRealNumber} (${bus.busNumber})</span>
+                        <div class="list-item-actions">
+                            <button class="btn ${bus.isOperate ? 'btn-secondary' : 'btn-success'}"
+                                    onclick="toggleBusOperation('${bus.busNumber}', ${!bus.isOperate})">
+                                ${bus.isOperate ? '운행 중지' : '운행 시작'}
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteBus('${bus.busNumber}')">삭제</button>
+                        </div>
+                    </div>
+                    <p>노선: ${bus.routeName}</p>
+                    <p>좌석: ${bus.occupiedSeats}/${bus.totalSeats} (사용가능: ${bus.availableSeats})</p>
+                    <p>상태: ${bus.isOperate ? '운행중' : '운행중지'}</p>
+                    <p>마지막 업데이트: ${bus.lastUpdateTime ? new Date(bus.lastUpdateTime).toLocaleString() : '없음'}</p>
+                </div>
+            `).join('');
+    }
+
+    // 버스 운행 상태 토글
+    async function toggleBusOperation(busNumber, isOperate) {
+        try {
+            await apiCall(`/api/bus/${busNumber}/operate?isOperate=${isOperate}`, {
+                method: 'PUT'
+            });
+
+            showMessage('buses-message', `버스 운행 상태가 ${isOperate ? '시작' : '중지'}되었습니다.`, 'success');
+            await loadBuses();
+        } catch (error) {
+            console.error('버스 상태 변경 실패:', error);
+            showMessage('buses-message', '버스 상태 변경에 실패했습니다.', 'error');
+        }
+    }
+
+    // 버스 삭제
+    async function deleteBus(busNumber) {
+        if (!confirm('이 버스를 삭제하시겠습니까?')) {
+            return;
+        }
+
+        try {
+            await apiCall(`/api/bus/${busNumber}`, {
+                method: 'DELETE'
+            });
+
+            showMessage('buses-message', '버스가 삭제되었습니다.', 'success');
+            await loadBuses();
+        } catch (error) {
+            console.error('버스 삭제 실패:', error);
+            showMessage('buses-message', '버스 삭제에 실패했습니다.', 'error');
+        }
+    }
+
+    // 버스 삭제
+    async function deleteBus(busNumber) {
+        if (!confirm('이 버스를 삭제하시겠습니까?')) {
+            return;
+        }
+
+        try {
+            await apiCall(`/api/bus/${busNumber}`, {
+                method: 'DELETE'
+            });
+
+            showMessage('buses-message', '버스가 삭제되었습니다.', 'success');
+            await loadBuses();
+        } catch (error) {
+            console.error('버스 삭제 실패:', error);
+            showMessage('buses-message', '버스 삭제에 실패했습니다.', 'error');
+        }
+    }
+
+    // 현황 로드
+    async function loadOverview() {
+        try {
+            // 정류장 현황
+            document.getElementById('overview-stations').innerHTML = `
+                    <p><strong>총 정류장 수:</strong> ${stationsData.length}개</p>
+                    ${stationsData.length > 0 ? `
+                        <p><strong>최근 생성:</strong> ${stationsData[stationsData.length - 1].name}</p>
+                    ` : '<p>등록된 정류장이 없습니다.</p>'}
+                `;
+
+            // 노선 현황
+            document.getElementById('overview-routes').innerHTML = `
+                    <p><strong>총 노선 수:</strong> ${routesData.length}개</p>
+                    ${routesData.length > 0 ? `
+                        <p><strong>평균 정류장 수:</strong> ${Math.round(routesData.reduce((sum, route) => sum + (route.stations ? route.stations.length : 0), 0) / routesData.length)}개</p>
+                    ` : '<p>등록된 노선이 없습니다.</p>'}
+                `;
+
+            // 버스 현황
+            const operatingBuses = busesData.filter(bus => bus.isOperate).length;
+            const totalSeats = busesData.reduce((sum, bus) => sum + bus.totalSeats, 0);
+            const occupiedSeats = busesData.reduce((sum, bus) => sum + bus.occupiedSeats, 0);
+
+            document.getElementById('overview-buses').innerHTML = `
+                    <p><strong>총 버스 수:</strong> ${busesData.length}대</p>
+                    <p><strong>운행 중인 버스:</strong> ${operatingBuses}대</p>
+                    <p><strong>전체 좌석:</strong> ${totalSeats}석</p>
+                    <p><strong>사용 중 좌석:</strong> ${occupiedSeats}석 (${totalSeats > 0 ? Math.round((occupiedSeats / totalSeats) * 100) : 0}%)</p>
+                `;
+        } catch (error) {
+            console.error('현황 로드 실패:', error);
+        }
+    }
+
+    // 지도에서 정류장 위치 선택
+    function addStationFromMap() {
+        if (typeof kakao === 'undefined' || typeof kakao.maps === 'undefined' || !map) {
+            alert('지도를 사용할 수 없습니다. 위도와 경도를 직접 입력해주세요.\n\n예시:\n- 서울시청: 위도 37.566535, 경도 126.977969\n- 부산시청: 위도 35.179665, 경도 129.075089');
+            document.getElementById('station-lat').focus();
+            return;
+        }
+        alert('지도를 클릭하여 정류장 위치를 선택하세요.');
+    }
+
+    // 로그아웃
+    function logout() {
+        if (confirm('로그아웃 하시겠습니까?')) {
+            window.location.href = '/staff/login';
+        }
+    }
+
+    // 초기 데이터 로드 (페이지 로드 시)
+    async function initializeData() {
+        await loadStations();
+        await loadRoutes();
+        await loadBuses();
+    }
+
+    // 페이지 로드 완료 시 초기화
+    window.addEventListener('load', function() {
+        initializeData();
+    });
+</script>
 </body>
 </html>
