@@ -7,6 +7,7 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 import static capston2024.bustracker.exception.ErrorCode.INVALID_TOKEN;
 
 @Component
+@Slf4j
 public class JwtTokenProvider {
     public static final long ACCESS_TOKEN_EXPIRE_TIME = 1000 * 60 * 60 * 24 * 30L; // 30일
     public static final long REFRESH_TOKEN_EXPIRE_TIME = 1000 * 60 * 60 * 24 * 90L; // 90일
@@ -114,6 +116,34 @@ public class JwtTokenProvider {
             }
         }
         return null;
+    }
+
+    // JwtTokenProvider.java에 추가할 메서드들
+
+    /**
+     * 토큰에서 이메일 추출
+     */
+    public String getEmailFromToken(String token) {
+        try {
+            Claims claims = parseClaims(token);
+            return (String) claims.get("email");
+        } catch (Exception e) {
+            log.error("토큰에서 이메일 추출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 토큰에서 사용자명 추출
+     */
+    public String getUsernameFromToken(String token) {
+        try {
+            Claims claims = parseClaims(token);
+            return claims.getSubject();
+        } catch (Exception e) {
+            log.error("토큰에서 사용자명 추출 실패: {}", e.getMessage());
+            return null;
+        }
     }
 
     public boolean validateToken(String token) {

@@ -12,7 +12,10 @@
         input { width: 100%; padding: .5rem; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; }
         button { width: 100%; padding: .7rem; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; }
         button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
         #error-message { color: red; margin-top: 1rem; text-align: center; display: none; }
+        #success-message { color: green; margin-top: 1rem; text-align: center; display: none; }
+        .loading { text-align: center; color: #666; }
     </style>
 </head>
 <body>
@@ -20,28 +23,47 @@
     <h1>조직 관리자 로그인</h1>
     <form id="login-form">
         <div class="input-group">
-            <label for="organizationId">아이디</label>
-            <input type="text" id="organizationId" name="organizationId" required>
+            <label for="organizationId">조직 ID</label>
+            <input type="text" id="organizationId" name="organizationId" required placeholder="조직 ID를 입력하세요">
         </div>
         <div class="input-group">
             <label for="password">비밀번호</label>
-            <input type="password" id="password" name="password" required>
+            <input type="password" id="password" name="password" required placeholder="비밀번호를 입력하세요">
         </div>
-        <button type="submit">로그인</button>
+        <button type="submit" id="login-btn">로그인</button>
     </form>
     <div id="error-message"></div>
+    <div id="success-message"></div>
 </div>
 
 <script>
     document.getElementById('login-form').addEventListener('submit', async function(e) {
         e.preventDefault();
 
-        const organizationId = document.getElementById('organizationId').value;
+        const organizationId = document.getElementById('organizationId').value.trim();
         const password = document.getElementById('password').value;
         const errorMessageDiv = document.getElementById('error-message');
+        const successMessageDiv = document.getElementById('success-message');
+        const loginBtn = document.getElementById('login-btn');
+
+        // 메시지 초기화
         errorMessageDiv.style.display = 'none';
+        successMessageDiv.style.display = 'none';
+
+        // 입력 검증
+        if (!organizationId || !password) {
+            errorMessageDiv.textContent = '조직 ID와 비밀번호를 모두 입력해주세요.';
+            errorMessageDiv.style.display = 'block';
+            return;
+        }
+
+        // 로딩 상태 설정
+        loginBtn.disabled = true;
+        loginBtn.textContent = '로그인 중...';
 
         try {
+            console.log('로그인 시도:', { organizationId });
+
             const response = await fetch('/api/staff/login', {
                 method: 'POST',
                 headers: {
@@ -51,18 +73,40 @@
             });
 
             const result = await response.json();
+            console.log('서버 응답:', result);
 
-            if (response.ok) {
+            if (response.ok && result.data && result.data.accessToken) {
                 const token = result.data.accessToken;
-                // 성공 시 토큰과 함께 대시보드로 리디렉션
-                window.location.href = `/staff/dashboard?token=${token}`;
+                console.log('로그인 성공, 토큰:', token);
+
+                // 성공 메시지 표시
+                successMessageDiv.textContent = '로그인 성공! 대시보드로 이동 중...';
+                successMessageDiv.style.display = 'block';
+
+                // 토큰과 함께 대시보드로 리디렉션
+                setTimeout(() => {
+                    window.location.href = `/staff/dashboard?token=${encodeURIComponent(token)}`;
+                }, 1000);
             } else {
+                console.error('로그인 실패:', result);
                 errorMessageDiv.textContent = result.message || '로그인에 실패했습니다.';
                 errorMessageDiv.style.display = 'block';
             }
         } catch (error) {
-            errorMessageDiv.textContent = '서버와 통신 중 오류가 발생했습니다.';
+            console.error('네트워크 오류:', error);
+            errorMessageDiv.textContent = '서버와 통신 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
             errorMessageDiv.style.display = 'block';
+        } finally {
+            // 로딩 상태 해제
+            loginBtn.disabled = false;
+            loginBtn.textContent = '로그인';
+        }
+    });
+
+    // 엔터 키 처리
+    document.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            document.getElementById('login-form').dispatchEvent(new Event('submit'));
         }
     });
 </script>

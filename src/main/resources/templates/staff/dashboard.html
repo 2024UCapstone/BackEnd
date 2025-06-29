@@ -2,77 +2,589 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>조직 관리자 대시보드</title>
+    <script th:if="${kakaoApiKey != null and !#strings.isEmpty(kakaoApiKey)}"
+            type="text/javascript"
+            th:src="|//dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoApiKey}&libraries=services&autoload=false|"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f7fa; color: #333; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header h1 { font-size: 1.5rem; font-weight: 600; }
+        .user-info { display: flex; align-items: center; gap: 1rem; }
+        .logout-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 0.5rem 1rem; border-radius: 5px; cursor: pointer; transition: background 0.3s; }
+        .container { max-width: 1400px; margin: 2rem auto; padding: 0 1rem; }
+        .tab-navigation { display: flex; background: white; border-radius: 10px 10px 0 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
+        .tab-btn { flex: 1; padding: 1rem; background: #f8f9fa; border: none; cursor: pointer; font-size: 1rem; font-weight: 500; }
+        .tab-btn.active { background: white; color: #667eea; }
+        .tab-content { background: white; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 2rem; min-height: 600px; }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+        .form-section { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; }
+        .form-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 1rem; color: #495057; }
+        .form-row { display: flex; gap: 1rem; margin-bottom: 1rem; align-items: end; }
+        .form-group { flex: 1; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        .form-group input, .form-group select { width: 100%; padding: 0.75rem; border: 1px solid #ced4da; border-radius: 5px; }
+        .btn { padding: 0.75rem 1.5rem; border: none; border-radius: 5px; font-size: 1rem; font-weight: 500; cursor: pointer; }
+        .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        #map, #edit-station-map { width: 100%; height: 300px; border-radius: 8px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); }
+        .list-item { background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+        .list-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+        .list-item-title { font-weight: 600; }
+        .list-item-actions { display: flex; gap: 0.5rem; }
+        .message { display: none; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; }
+        .message.success { background: #d4edda; color: #155724; }
+        .message.error { background: #f8d7da; color: #721c24; }
+        .loading { text-align: center; padding: 2rem; color: #6c757d; }
+        .station-order { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 1rem; min-height: 150px; }
+        .station-item { display: flex; align-items: center; padding: 0.5rem; background: white; border-radius: 5px; }
+        .station-number { background: #667eea; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 1rem; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 700px; border-radius: 8px; }
+        .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+    </style>
 </head>
 <body>
-<h1>조직 관리자 대시보드</h1>
-<h2 th:text="|${user.name}님, 환영합니다.|"></h2>
-<p th:text="|소속: ${user.organizationId}|"></p>
+<header class="header">
+    <h1>조직 관리자 대시보드</h1>
+    <div class="user-info">
+        <span th:text="|${user.name}님 (${user.organizationId})|">관리자님</span>
+        <button class="logout-btn">로그아웃</button>
+    </div>
+</header>
+
+<div class="container">
+    <div class="tab-navigation">
+        <button class="tab-btn active" data-tab="stations">1. 정류장 관리</button>
+        <button class="tab-btn" data-tab="routes">2. 노선 관리</button>
+        <button class="tab-btn" data-tab="buses">3. 버스 관리</button>
+        <button class="tab-btn" data-tab="overview">현황 보기</button>
+    </div>
+
+    <div class="tab-content">
+        <div id="stations" class="tab-pane active">
+            <div class="form-section">
+                <h3 class="form-title">새 정류장 추가</h3>
+                <div class="form-group">
+                    <label for="station-name">정류장 이름</label>
+                    <input type="text" id="station-name" placeholder="지도에서 위치를 클릭하거나, 이름을 입력하세요">
+                </div>
+                <div id="map"></div>
+                <div class="form-row" style="margin-top: 1rem;">
+                    <div class="form-group"><label for="station-lat">위도</label><input type="number" id="station-lat" step="any"></div>
+                    <div class="form-group"><label for="station-lng">경도</label><input type="number" id="station-lng" step="any"></div>
+                    <button class="btn btn-success" id="create-station-btn">정류장 생성</button>
+                </div>
+            </div>
+            <div id="stations-message" class="message"></div>
+            <h3>기존 정류장 목록</h3>
+            <div id="stations-list" class="loading">정류장 목록을 불러오는 중...</div>
+        </div>
+        <div id="routes" class="tab-pane">
+            <div class="form-section">
+                <h3 class="form-title">새 노선 추가</h3>
+                <div class="form-row">
+                    <div class="form-group"><label for="route-name">노선 이름</label><input type="text" id="route-name" placeholder="예: 1캠퍼스 순환"></div>
+                    <button class="btn btn-primary" id="show-station-selector-btn">정류장 선택</button>
+                </div>
+                <div id="station-selector" style="display: none;">
+                    <h4>정류장 순서 설정</h4>
+                    <div class="form-row">
+                        <div class="form-group"><label for="available-stations">사용 가능 정류장</label><select id="available-stations" size="8" style="height: 200px;"></select></div>
+                        <div style="display: flex; flex-direction: column; justify-content: center; gap: 1rem;">
+                            <button class="btn btn-secondary" id="add-station-to-route-btn">→</button>
+                            <button class="btn btn-secondary" id="remove-station-from-route-btn">←</button>
+                        </div>
+                        <div class="form-group"><label>선택된 정류장</label><div id="selected-stations" class="station-order"></div></div>
+                    </div>
+                    <button class="btn btn-success" id="create-route-btn">노선 생성</button>
+                </div>
+            </div>
+            <div id="routes-message" class="message"></div>
+            <h3>기존 노선 목록</h3>
+            <div id="routes-list" class="loading">노선 목록을 불러오는 중...</div>
+        </div>
+        <div id="buses" class="tab-pane">
+            <div class="form-section">
+                <h3 class="form-title">새 버스 추가</h3>
+                <div class="form-row">
+                    <div class="form-group"><label for="bus-real-number">버스 번호</label><input type="text" id="bus-real-number" placeholder="예: 101번"></div>
+                    <div class="form-group"><label for="bus-route">노선 선택</label><select id="bus-route"></select></div>
+                    <div class="form-group"><label for="bus-total-seats">총 좌석 수</label><input type="number" id="bus-total-seats" min="1" value="30"></div>
+                    <button class="btn btn-success" id="create-bus-btn">버스 생성</button>
+                </div>
+            </div>
+            <div id="buses-message" class="message"></div>
+            <h3>기존 버스 목록</h3>
+            <div id="buses-list" class="loading">노선 목록을 불러오는 중...</div>
+        </div>
+        <div id="overview" class="tab-pane">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                <div class="form-section"><h3 class="form-title">정류장 현황</h3><div id="overview-stations"></div></div>
+                <div class="form-section"><h3 class="form-title">노선 현황</h3><div id="overview-routes"></div></div>
+                <div class="form-section"><h3 class="form-title">버스 현황</h3><div id="overview-buses"></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="edit-station-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn">&times;</span>
+        <h3 class="form-title">정류장 수정</h3>
+        <input type="hidden" id="edit-station-id">
+        <div class="form-group"><label for="edit-station-name">정류장 이름</label><input type="text" id="edit-station-name"></div>
+        <div id="edit-station-map"></div>
+        <div class="form-row" style="margin-top: 1rem;">
+            <div class="form-group"><label for="edit-station-lat">위도</label><input type="number" id="edit-station-lat" step="any"></div>
+            <div class="form-group"><label for="edit-station-lng">경도</label><input type="number" id="edit-station-lng" step="any"></div>
+        </div>
+        <button class="btn btn-primary" id="save-station-btn">저장</button>
+    </div>
+</div>
+<div id="edit-route-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn">&times;</span>
+        <h3 class="form-title">노선 수정</h3>
+        <input type="hidden" id="edit-route-id">
+        <div class="form-group"><label for="edit-route-name">노선 이름</label><input type="text" id="edit-route-name"></div>
+        <button class="btn btn-primary" id="save-route-btn">저장</button>
+    </div>
+</div>
+<div id="edit-bus-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn">&times;</span>
+        <h3 class="form-title">버스 수정</h3>
+        <input type="hidden" id="edit-bus-number">
+        <div class="form-group"><label for="edit-bus-real-number">버스 번호</label><input type="text" id="edit-bus-real-number"></div>
+        <div class="form-group"><label for="edit-bus-route">노선 선택</label><select id="edit-bus-route"></select></div>
+        <div class="form-group"><label for="edit-bus-total-seats">총 좌석 수</label><input type="number" id="edit-bus-total-seats" min="1"></div>
+        <button class="btn btn-primary" id="save-bus-btn">저장</button>
+    </div>
+</div>
+
 <input type="hidden" id="auth-token" th:value="${token}">
 
-<h2>버스 관리</h2>
-<table border="1">
-    <thead>
-    <tr>
-        <th>버스 번호</th>
-        <th>실제 번호</th>
-        <th>노선</th>
-        <th>운행 상태</th>
-        <th>작업</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr th:each="bus : ${buses}">
-        <td th:text="${bus.busNumber}"></td>
-        <td th:text="${bus.busRealNumber}"></td>
-        <td th:text="${bus.routeName}"></td>
-        <td th:text="${bus.isOperate} ? '운행중' : '중지'"></td>
-        <td>
-            <button>수정</button>
-            <button>삭제</button>
-        </td>
-    </tr>
-    </tbody>
-</table>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let map, editStationMap;
+        let currentMarker, editStationMarker;
+        let stationsData = [], routesData = [], busesData = [];
+        let selectedStationsForRoute = [];
 
-<h2>노선 관리</h2>
-<table border="1">
-    <thead>
-    <tr>
-        <th>노선 이름</th>
-        <th>작업</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr th:each="route : ${routes}">
-        <td th:text="${route.routeName}"></td>
-        <td>
-            <button>수정</button>
-            <button>삭제</button>
-        </td>
-    </tr>
-    </tbody>
-</table>
+        if (typeof kakao !== 'undefined') {
+            kakao.maps.load(initializeApp);
+        } else {
+            console.error("Kakao Maps SDK가 로드되지 않았습니다.");
+            loadAllData();
+            setupEventListeners(); // 지도 없이도 이벤트 리스너 설정
+        }
 
+        function initializeApp() {
+            initializeMap('map', (m, mk) => { map = m; currentMarker = mk; }, 'station-lat', 'station-lng');
+            loadAllData();
+            setupEventListeners();
+        }
 
-<h2>정류장 관리</h2>
-<table border="1">
-    <thead>
-    <tr>
-        <th>정류장 이름</th>
-        <th>작업</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr th:each="station : ${stations}">
-        <td th:text="${station.name}"></td>
-        <td>
-            <button>수정</button>
-            <button>삭제</button>
-        </td>
-    </tr>
-    </tbody>
-</table>
+        function initializeMap(containerId, callback, latId, lngId) {
+            const container = document.getElementById(containerId);
+            if (!container || !window.kakao) return;
+            const options = { center: new kakao.maps.LatLng(37.566826, 126.9786567), level: 3 };
+            const mapInstance = new kakao.maps.Map(container, options);
+            let marker = new kakao.maps.Marker();
+            kakao.maps.event.addListener(mapInstance, 'click', e => {
+                marker.setPosition(e.latLng);
+                marker.setMap(mapInstance);
+                if(latId && lngId) {
+                    document.getElementById(latId).value = e.latLng.getLat();
+                    document.getElementById(lngId).value = e.latLng.getLng();
+                }
+            });
+            if (callback) callback(mapInstance, marker);
+        }
 
+        async function apiCall(url, options = {}) {
+            const token = document.getElementById('auth-token').value;
+            const headers = { 'Content-Type': 'application/json', ...options.headers };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const response = await fetch(url, { ...options, headers });
+            const responseData = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(responseData.message || `HTTP error! status: ${response.status}`);
+            return responseData;
+        }
+
+        async function loadAllData() {
+            try {
+                await Promise.all([loadStations(), loadRoutes(), loadBuses()]);
+                loadOverview();
+            } catch (error) { console.error('Failed to load all data:', error); }
+        }
+
+        async function loadStations() {
+            try {
+                const response = await apiCall('/api/station');
+                stationsData = response.data || [];
+                renderStations();
+            } catch (error) {
+                document.getElementById('stations-list').innerHTML = `<p class="message error">정류장 목록 로딩 실패: ${error.message}</p>`;
+            }
+        }
+
+        async function loadRoutes() {
+            try {
+                const response = await apiCall('/api/routes');
+                routesData = response.data || [];
+                renderRoutes();
+                loadRoutesForBusSelect();
+            } catch (error) {
+                document.getElementById('routes-list').innerHTML = `<p class="message error">노선 목록 로딩 실패: ${error.message}</p>`;
+            }
+        }
+
+        async function loadBuses() {
+            try {
+                const response = await apiCall('/api/bus');
+                busesData = response.data || [];
+                renderBuses();
+            } catch (error) {
+                document.getElementById('buses-list').innerHTML = `<p class="message error">버스 목록 로딩 실패: ${error.message}</p>`;
+            }
+        }
+
+        function renderStations() {
+            const container = document.getElementById('stations-list');
+            container.innerHTML = stationsData.length === 0 ? '<p>등록된 정류장이 없습니다.</p>' :
+                stationsData.map(station => `
+            <div class="list-item" data-id="${station.id}">
+                <div class="list-item-header">
+                    <span class="list-item-title">${station.name}</span>
+                    <div class="list-item-actions">
+                        <button class="btn btn-warning btn-sm" data-action="edit">수정</button>
+                        <button class="btn btn-danger btn-sm" data-action="delete">삭제</button>
+                    </div>
+                </div>
+                <p>위치: ${station.location ? `${station.location.y.toFixed(6)}, ${station.location.x.toFixed(6)}` : '정보 없음'}</p>
+            </div>`).join('');
+        }
+
+        function renderRoutes() {
+            const container = document.getElementById('routes-list');
+            container.innerHTML = routesData.length === 0 ? '<p>등록된 노선이 없습니다.</p>' :
+                routesData.map(route => `
+            <div class="list-item" data-id="${route.id}">
+                <div class="list-item-header">
+                    <span class="list-item-title">${route.routeName}</span>
+                    <div class="list-item-actions">
+                        <button class="btn btn-warning btn-sm" data-action="edit">수정</button>
+                        <button class="btn btn-danger btn-sm" data-action="delete">삭제</button>
+                    </div>
+                </div>
+                <p>정류장 수: ${route.stations ? route.stations.length : 0}개</p>
+                <p>정류장: ${route.stations ? route.stations.map(s => s.stationName).join(' → ') : '없음'}</p>
+            </div>`).join('');
+        }
+
+        function renderBuses() {
+            const container = document.getElementById('buses-list');
+            container.innerHTML = busesData.length === 0 ? '<p>등록된 버스가 없습니다.</p>' :
+                busesData.map(bus => `
+            <div class="list-item" data-id="${bus.busNumber}">
+                <div class="list-item-header">
+                    <span class="list-item-title">${bus.busRealNumber} (${bus.busNumber})</span>
+                    <div class="list-item-actions">
+                        <button class="btn ${bus.isOperate ? 'btn-secondary' : 'btn-success'} btn-sm" data-action="toggle-operate" data-operate="${!bus.isOperate}">${bus.isOperate ? '운행 중지' : '운행 시작'}</button>
+                        <button class="btn btn-warning btn-sm" data-action="edit">수정</button>
+                        <button class="btn btn-danger btn-sm" data-action="delete">삭제</button>
+                    </div>
+                </div>
+                <p>노선: ${bus.routeName || '할당 안됨'}</p>
+                <p>좌석: ${bus.occupiedSeats}/${bus.totalSeats} (가용: ${bus.availableSeats})</p>
+                <p>상태: ${bus.isOperate ? '운행중' : '운행중지'}</p>
+            </div>`).join('');
+        }
+
+        function loadOverview() {
+            document.getElementById('overview-stations').innerHTML = `<p><strong>총 정류장 수:</strong> ${stationsData.length}개</p>`;
+            document.getElementById('overview-routes').innerHTML = `<p><strong>총 노선 수:</strong> ${routesData.length}개</p>`;
+            const operatingBuses = busesData.filter(b => b.isOperate).length;
+            document.getElementById('overview-buses').innerHTML = `<p><strong>총 버스 수:</strong> ${busesData.length}대</p><p><strong>운행 중:</strong> ${operatingBuses}대</p>`;
+        }
+
+        function setupEventListeners() {
+            document.querySelector('.tab-navigation').addEventListener('click', e => {
+                if (e.target.matches('.tab-btn')) showTab(e.target.dataset.tab);
+            });
+
+            document.getElementById('stations-list').addEventListener('click', e => {
+                const action = e.target.dataset.action;
+                if (action) {
+                    const id = e.target.closest('.list-item').dataset.id;
+                    if (action === 'edit') handleEditStation(id);
+                    if (action === 'delete') deleteStation(id);
+                }
+            });
+
+            document.getElementById('routes-list').addEventListener('click', e => {
+                const action = e.target.dataset.action;
+                if (action) {
+                    const id = e.target.closest('.list-item').dataset.id;
+                    if (action === 'edit') handleEditRoute(id);
+                    if (action === 'delete') deleteRoute(id);
+                }
+            });
+
+            document.getElementById('buses-list').addEventListener('click', e => {
+                const action = e.target.dataset.action;
+                if (action) {
+                    const id = e.target.closest('.list-item').dataset.id;
+                    if (action === 'edit') handleEditBus(id);
+                    if (action === 'delete') deleteBus(id);
+                    if (action === 'toggle-operate') {
+                        const operate = e.target.dataset.operate === 'true';
+                        toggleBusOperation(id, operate);
+                    }
+                }
+            });
+
+            document.querySelectorAll('.modal .close-btn').forEach(btn => btn.addEventListener('click', () => closeModal(btn.closest('.modal').id)));
+
+            document.getElementById('create-station-btn').addEventListener('click', createStation);
+            document.getElementById('save-station-btn').addEventListener('click', updateStation);
+            document.getElementById('show-station-selector-btn').addEventListener('click', showStationSelector);
+            document.getElementById('add-station-to-route-btn').addEventListener('click', addStationToRoute);
+            document.getElementById('remove-station-from-route-btn').addEventListener('click', removeStationFromRoute);
+            document.getElementById('create-route-btn').addEventListener('click', createRoute);
+            document.getElementById('save-route-btn').addEventListener('click', updateRoute);
+            document.getElementById('create-bus-btn').addEventListener('click', createBus);
+            document.getElementById('save-bus-btn').addEventListener('click', updateBus);
+            document.querySelector('.logout-btn').addEventListener('click', logout);
+        }
+
+        function handleEditStation(id) {
+            const station = stationsData.find(s => s.id === id);
+            if (!station || !station.location) return;
+
+            document.getElementById('edit-station-id').value = station.id;
+            document.getElementById('edit-station-name').value = station.name;
+            document.getElementById('edit-station-lat').value = station.location.y;
+            document.getElementById('edit-station-lng').value = station.location.x;
+
+            openModal('edit-station-modal');
+
+            const updateMap = () => {
+                const latLng = new kakao.maps.LatLng(station.location.y, station.location.x);
+                if (editStationMap && editStationMarker) {
+                    editStationMap.setCenter(latLng);
+                    editStationMarker.setPosition(latLng);
+                    setTimeout(() => editStationMap.relayout(), 10);
+                }
+            };
+
+            if (!editStationMap) {
+                initializeMap('edit-station-map', (m, mk) => {
+                    editStationMap = m;
+                    editStationMarker = mk;
+                    updateMap();
+                }, 'edit-station-lat', 'edit-station-lng');
+            } else {
+                updateMap();
+            }
+        }
+
+        async function createStation() {
+            const name = document.getElementById('station-name').value;
+            const lat = document.getElementById('station-lat').value;
+            const lng = document.getElementById('station-lng').value;
+            if (!name || !lat || !lng) return showMessage('stations-message', '모든 필드를 입력해주세요.', 'error');
+            try {
+                await apiCall('/api/station', { method: 'POST', body: JSON.stringify({ name, latitude: parseFloat(lat), longitude: parseFloat(lng) }) });
+                showMessage('stations-message', '정류장 생성 성공', 'success');
+                loadStations();
+            } catch (error) { showMessage('stations-message', `정류장 생성 실패: ${error.message}`, 'error'); }
+        }
+
+        async function updateStation() {
+            const id = document.getElementById('edit-station-id').value;
+            const name = document.getElementById('edit-station-name').value;
+            const lat = document.getElementById('edit-station-lat').value;
+            const lng = document.getElementById('edit-station-lng').value;
+            try {
+                await apiCall(`/api/station/${id}`, { method: 'PUT', body: JSON.stringify({ name, latitude: parseFloat(lat), longitude: parseFloat(lng) }) });
+                showMessage('stations-message', '정류장 수정 성공', 'success');
+                closeModal('edit-station-modal');
+                loadStations();
+            } catch (error) { showMessage('stations-message', `정류장 수정 실패: ${error.message}`, 'error'); }
+        }
+
+        async function deleteStation(id) {
+            if (!confirm('이 정류장을 삭제하시겠습니까?')) return;
+            try {
+                await apiCall(`/api/station/${id}`, { method: 'DELETE' });
+                showMessage('stations-message', '정류장 삭제 성공', 'success');
+                loadStations();
+            } catch (error) { showMessage('stations-message', `정류장 삭제 실패: ${error.message}`, 'error'); }
+        }
+
+        function showStationSelector() {
+            document.getElementById('station-selector').style.display = 'block';
+            loadAvailableStations();
+        }
+
+        function loadAvailableStations() {
+            document.getElementById('available-stations').innerHTML = stationsData.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        }
+
+        function addStationToRoute() {
+            const select = document.getElementById('available-stations');
+            const option = select.options[select.selectedIndex];
+            if (option && !selectedStationsForRoute.find(s => s.id === option.value)) {
+                selectedStationsForRoute.push({ id: option.value, name: option.text });
+                renderSelectedStations();
+            }
+        }
+
+        function removeStationFromRoute() {
+            if (selectedStationsForRoute.length > 0) {
+                selectedStationsForRoute.pop();
+                renderSelectedStations();
+            }
+        }
+
+        function renderSelectedStations() {
+            document.getElementById('selected-stations').innerHTML = selectedStationsForRoute.map((s, i) => `<div class="station-item"><span class="station-number">${i + 1}</span><span>${s.name}</span></div>`).join('');
+        }
+
+        async function createRoute() {
+            const routeName = document.getElementById('route-name').value.trim();
+            if (!routeName || selectedStationsForRoute.length < 2) return showMessage('routes-message', '노선 이름과 2개 이상의 정류장을 선택해주세요.', 'error');
+            try {
+                const stations = selectedStationsForRoute.map((s, i) => ({ sequence: i + 1, stationId: s.id }));
+                await apiCall('/api/routes', { method: 'POST', body: JSON.stringify({ routeName, stations }) });
+                showMessage('routes-message', '노선 생성 성공', 'success');
+                loadRoutes();
+            } catch (error) { showMessage('routes-message', `노선 생성 실패: ${error.message}`, 'error'); }
+        }
+
+        function handleEditRoute(id) {
+            const route = routesData.find(r => r.id === id);
+            if (route) {
+                document.getElementById('edit-route-id').value = route.id;
+                document.getElementById('edit-route-name').value = route.routeName;
+                openModal('edit-route-modal');
+            }
+        }
+
+        async function updateRoute() {
+            const id = document.getElementById('edit-route-id').value;
+            const newRouteName = document.getElementById('edit-route-name').value;
+            const original = routesData.find(r => r.id === id);
+            try {
+                await apiCall('/api/routes', { method: 'PUT', body: JSON.stringify({ prevRouteName: original.routeName, newRouteName, stations: original.stations.map(s => ({sequence: s.sequence, stationId: s.stationId})) }) });
+                showMessage('routes-message', '노선 수정 성공', 'success');
+                closeModal('edit-route-modal');
+                loadRoutes();
+            } catch (error) { showMessage('routes-message', `노선 수정 실패: ${error.message}`, 'error'); }
+        }
+
+        async function deleteRoute(id) {
+            if (!confirm('이 노선을 삭제하시겠습니까?')) return;
+            try {
+                await apiCall(`/api/routes/${id}`, { method: 'DELETE' });
+                showMessage('routes-message', '노선 삭제 성공', 'success');
+                loadRoutes();
+            } catch (error) { showMessage('routes-message', `노선 삭제 실패: ${error.message}`, 'error'); }
+        }
+
+        function loadRoutesForBusSelect() {
+            const options = '<option value="">노선을 선택하세요</option>' + routesData.map(r => `<option value="${r.id}">${r.routeName}</option>`).join('');
+            document.getElementById('bus-route').innerHTML = options;
+            document.getElementById('edit-bus-route').innerHTML = options;
+        }
+
+        async function createBus() {
+            const busRealNumber = document.getElementById('bus-real-number').value.trim();
+            const routeId = document.getElementById('bus-route').value;
+            const totalSeats = parseInt(document.getElementById('bus-total-seats').value);
+            if (!busRealNumber || !routeId || !totalSeats) return showMessage('buses-message', '모든 필드를 입력해주세요.', 'error');
+            try {
+                await apiCall('/api/bus', { method: 'POST', body: JSON.stringify({ busRealNumber, routeId, totalSeats, isOperate: true }) });
+                showMessage('buses-message', '버스 생성 성공', 'success');
+                loadBuses();
+            } catch (error) { showMessage('buses-message', `버스 생성 실패: ${error.message}`, 'error'); }
+        }
+
+        function handleEditBus(busNumber) {
+            const bus = busesData.find(b => b.busNumber === busNumber);
+            if (bus) {
+                document.getElementById('edit-bus-number').value = bus.busNumber;
+                document.getElementById('edit-bus-real-number').value = bus.busRealNumber;
+                document.getElementById('edit-bus-total-seats').value = bus.totalSeats;
+                const route = routesData.find(r => r.routeName === bus.routeName);
+                document.getElementById('edit-bus-route').value = route ? route.id : "";
+                openModal('edit-bus-modal');
+            }
+        }
+
+        async function updateBus() {
+            const busNumber = document.getElementById('edit-bus-number').value;
+            const busRealNumber = document.getElementById('edit-bus-real-number').value;
+            const routeId = document.getElementById('edit-bus-route').value;
+            const totalSeats = document.getElementById('edit-bus-total-seats').value;
+            try {
+                await apiCall('/api/bus', { method: 'PUT', body: JSON.stringify({ busNumber, busRealNumber, routeId, totalSeats: parseInt(totalSeats) }) });
+                showMessage('buses-message', '버스 수정 성공', 'success');
+                closeModal('edit-bus-modal');
+                loadBuses();
+            } catch (error) { showMessage('buses-message', `버스 수정 실패: ${error.message}`, 'error'); }
+        }
+
+        async function deleteBus(busNumber) {
+            if (!confirm('이 버스를 삭제하시겠습니까?')) return;
+            try {
+                await apiCall(`/api/bus/${busNumber}`, { method: 'DELETE' });
+                showMessage('buses-message', '버스 삭제 성공', 'success');
+                loadBuses();
+            } catch (error) { showMessage('buses-message', `버스 삭제 실패: ${error.message}`, 'error'); }
+        }
+
+        async function toggleBusOperation(busNumber, isOperate) {
+            try {
+                await apiCall(`/api/bus/${busNumber}/operate?isOperate=${isOperate}`, { method: 'PUT' });
+                showMessage('buses-message', '운행 상태 변경 성공', 'success');
+                await loadBuses();
+                loadOverview();
+            } catch (error) { showMessage('buses-message', `상태 변경 실패: ${error.message}`, 'error'); }
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-btn, .tab-pane').forEach(el => el.classList.remove('active'));
+            document.querySelector(`.tab-btn[data-tab='${tabName}']`).classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        function openModal(modalId) { document.getElementById(modalId).style.display = 'block'; }
+        function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
+        window.addEventListener('click', e => { if (e.target.classList.contains('modal')) closeModal(e.target.id); });
+
+        function logout() { if (confirm('로그아웃 하시겠습니까?')) window.location.href = '/staff/login'; }
+
+        function showMessage(elId, msg, type) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            el.className = `message ${type}`;
+            el.textContent = msg;
+            el.style.display = 'block';
+            setTimeout(() => { el.style.display = 'none'; }, 5000);
+        }
+    });
+</script>
 </body>
 </html>
